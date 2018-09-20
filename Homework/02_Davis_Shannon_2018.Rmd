@@ -1,0 +1,117 @@
+---
+title: "02_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "September 17, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##1. R Warmup
+
+###1a. Create a vector of 100 randomly distributed  numbers between 0 and 100 using runif and save the vector into the variable my_vec. If you cannot figure out runif, try ?runif. What information does str and summary tell you about my_vec? How do they differ?
+
+```{r}
+my_vec <- runif(n = 100, min = 0, max = 100)
+
+str(my_vec)
+summary(my_vec)
+```
+
+Str tells you the variable class and how many units are in the variable. In this case the class is num that is 100 units long. Str also gives the first few values.  
+
+Summary gives a summary of the data in terms of quartiles, min and maz, and the mean.
+
+Both Str and Summary tell you something about the data, but str tells you about the data type and summary tells you about what the data looks like. 
+
+
+
+###1b. Try out a little plot. What does hist(my_vec) show you? What information does the helpfile for hist tell you about what you just did?
+
+```{R}
+hist(my_vec)
+```
+
+The Hist help file says that R's default is to create equally spaced "breaks". Rectangles are used to represent the proportional number of points that fall within the range between breaks. 
+ 
+###1c. Load up the mtcars data set using data(mtcars). Apply the following functions to mtcars: class, str, summary. What do these three functions tell you about mtcars?
+
+``` {R}
+data(mtcars)
+class(mtcars)
+str(mtcars)
+summary(mtcars)
+
+```
+
+Class tells you the class of the object. In this case data frame. 
+
+str tells you how many objects there are and how many varibles there are. In this case there are 32 objects and 11 varibles. It then takes the 11 varibles and tells the data type. In this case all the varible types are num.
+
+summary tells you the quartiles, min and max, and mean of each varible. It breaks the dataframe apart and tells data on each individual varible like mpg, cyl, etc. 
+
+
+  
+###1d Look at the help file for the class data.frame. What does it tell you about these objects?
+
+The help file says that data.frames are for "tightly coupled collections of variables which share many of the properties of matrices and of lists". in the case of mtcars we can see a cars being compaired by differenct specifications. This is a collection of varibles (cars) that share many properties (mpg, cyl, etc.). 
+ 
+##2. Sample Properties
+###Consider the following vasopressin levels in voles.
+
+```{R}
+vole_vaso <- c(98,96,94,88,86,82,77,74,70,60,
+               59,52,50,47,40,35,29,13,6,5)
+
+```
+               
+###2a. Say "Vole vasopressin" 10 times as fast as you can. How many times did you trip up?
+
+11... Which is crazy because I only said it 10 times. 
+  
+###2b. What is the mean, median, sd, and interquartile range of the sample?
+
+```{R}
+
+#sd(vole_vaso)
+
+#str(summ)
+
+#summ[5,1]- summ[3,1]
+#class(summ)
+```
+  
+Mean = 58.05 (from summary)
+median = 59.50 (from summary)
+sd = 29.75 (from sd)
+interquartile range 
+###2c. What is the standard error of the mean (do this with a formula!)?
+ 
+###2d. What does the standard error of the mean tell you about our estimate of the mean values of the population of vole vassopressin?
+  
+##3. Sample Size for upper quartiles.
+###We can get the upper quartile value of vole vassopressin with
+
+```
+quantile(vole_vaso, probs = 0.75)
+```
+###Let's assume the sample is representative of the popultion.
+
+###3a. Use sample() to get just one resample with a sample size of 10. What is its upper quartile?
+  
+###3b. Build an initial data frame for simulations with the sample sizes 5 through 20. Have 100 simulations per sample size.
+
+###3c. Use this data frame to get simulated upper quartiles for each sample size.
+
+###3d. With a plot, make a guesstimate as to the best sample size for estimating the upper quartile of the population.
+
+##4. SE and CI
+###4a. With the upper quartile simulations, calculate the SD for each sample size using dplyr
+
+###4b. What does this value, the standard error of the upper quartile, mean?
+  
+###4c. What is the CI of the upper quartile with a sample size of 10. What does this mean?
+  
+###4d. Extra Credit: Instead of having each sim calculate a upper quartile, and then sifting down to the SE of that upper quartile (or the CI), have each simulation calculate a CI. Then, for just a sample size of 10, how many CI's contain the true value of 83?
