@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
 ```
 
 ##1. R Warmup
@@ -75,43 +76,83 @@ vole_vaso <- c(98,96,94,88,86,82,77,74,70,60,
 
 ```{R}
 
-#sd(vole_vaso)
+mean(vole_vaso)
+median(vole_vaso)
+sd(vole_vaso)
+IQR(vole_vaso)
 
-#str(summ)
-
-#summ[5,1]- summ[3,1]
-#class(summ)
 ```
   
-Mean = 58.05 (from summary)
-median = 59.50 (from summary)
-sd = 29.75 (from sd)
-interquartile range 
+ 
 ###2c. What is the standard error of the mean (do this with a formula!)?
+
+```{R}
+
+sd(vole_vaso)/sqrt(length(vole_vaso))
+
+```
  
 ###2d. What does the standard error of the mean tell you about our estimate of the mean values of the population of vole vassopressin?
+
+The standard error tells us how well the sample represents the population. The standard error of vole vassopressin is 6.65 and therefore the probabilty that the population mean is within 6.65 units of the sample mean is 66%.
   
 ##3. Sample Size for upper quartiles.
 ###We can get the upper quartile value of vole vassopressin with
 
-```
+``` {R}
 quantile(vole_vaso, probs = 0.75)
 ```
 ###Let's assume the sample is representative of the popultion.
 
 ###3a. Use sample() to get just one resample with a sample size of 10. What is its upper quartile?
+
+```{R}
+samp_vole <- sample(vole_vaso, size=10, replace =FALSE)
+quantile(samp_vole, probs = 0.75)
+```
   
 ###3b. Build an initial data frame for simulations with the sample sizes 5 through 20. Have 100 simulations per sample size.
-
+```{R}
+sim_vole <- data.frame(samp_size = rep(5:20, 100)) %>%
+  mutate(sims = 1:n())
+```
 ###3c. Use this data frame to get simulated upper quartiles for each sample size.
+```{R}
+sim_vole <- sim_vole %>%
+  rowwise() %>%
+  mutate(upperq = quantile(sample(vole_vaso, samp_size, replace=TRUE), probs=0.75)) %>%
+  ungroup()
+```
 
 ###3d. With a plot, make a guesstimate as to the best sample size for estimating the upper quartile of the population.
+
+```{R}
+plot(upperq ~ samp_size, data=sim_vole)
+```
 
 ##4. SE and CI
 ###4a. With the upper quartile simulations, calculate the SD for each sample size using dplyr
 
+```{R}
+sim_vole_sum <- sim_vole %>%
+  group_by(samp_size) %>%
+  summarise(upperq_sd = sd(upperq),
+            upperq_se = upperq_sd/sqrt(100)) %>%
+  ungroup()
+
+sim_vole_sum
+```
+
 ###4b. What does this value, the standard error of the upper quartile, mean?
+
+The standard error of the upper quartile tells us how close the upper quartile of the sample is to the upper quartile of the population. 
   
 ###4c. What is the CI of the upper quartile with a sample size of 10. What does this mean?
+
+```{R}
+upper_ci <- quantile(sample(sim_vole$upperq, size = 10), c(0,0.66,0.95))
+
+upper_ci
+```
   
 ###4d. Extra Credit: Instead of having each sim calculate a upper quartile, and then sifting down to the SE of that upper quartile (or the CI), have each simulation calculate a CI. Then, for just a sample size of 10, how many CI's contain the true value of 83?
