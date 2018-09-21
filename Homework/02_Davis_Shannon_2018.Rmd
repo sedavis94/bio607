@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#add in dplyr library
 library(dplyr)
 ```
 
@@ -15,8 +16,10 @@ library(dplyr)
 ###1a. Create a vector of 100 randomly distributed  numbers between 0 and 100 using runif and save the vector into the variable my_vec. If you cannot figure out runif, try ?runif. What information does str and summary tell you about my_vec? How do they differ?
 
 ```{r}
+#make a vec wuth 100 random numbers between 0 and 100
 my_vec <- runif(n = 100, min = 0, max = 100)
 
+#str and sum my_vec
 str(my_vec)
 summary(my_vec)
 ```
@@ -32,15 +35,18 @@ Both Str and Summary tell you something about the data, but str tells you about 
 ###1b. Try out a little plot. What does hist(my_vec) show you? What information does the helpfile for hist tell you about what you just did?
 
 ```{R}
+#histogram of my_vec
 hist(my_vec)
 ```
 
-The Hist help file says that R's default is to create equally spaced "breaks". Rectangles are used to represent the proportional number of points that fall within the range between breaks. 
+The Hist help file says that R's default is to create equally spaced "breaks". Rectangles are used to represent the proportional number of points that fall within the range between breaks from your sample, in this case it is displaying all the frequencies of values in my_vec. 
  
 ###1c. Load up the mtcars data set using data(mtcars). Apply the following functions to mtcars: class, str, summary. What do these three functions tell you about mtcars?
 
 ``` {R}
+#load in data.frame, mtcars
 data(mtcars)
+#take the class, str and sum mtcars
 class(mtcars)
 str(mtcars)
 summary(mtcars)
@@ -49,7 +55,7 @@ summary(mtcars)
 
 Class tells you the class of the object. In this case data frame. 
 
-str tells you how many objects there are and how many varibles there are. In this case there are 32 objects and 11 varibles. It then takes the 11 varibles and tells the data type. In this case all the varible types are num.
+str tells you how many objects there are and how many varibles there are. In this case there are 32 objects with 11 varibles. It then takes the 11 varibles and tells the data type. In this case all the varible types are num.
 
 summary tells you the quartiles, min and max, and mean of each varible. It breaks the dataframe apart and tells data on each individual varible like mpg, cyl, etc. 
 
@@ -57,7 +63,7 @@ summary tells you the quartiles, min and max, and mean of each varible. It break
   
 ###1d Look at the help file for the class data.frame. What does it tell you about these objects?
 
-The help file says that data.frames are for "tightly coupled collections of variables which share many of the properties of matrices and of lists". in the case of mtcars we can see a cars being compaired by differenct specifications. This is a collection of varibles (cars) that share many properties (mpg, cyl, etc.). 
+The help file says that data.frames are for "tightly coupled collections of variables which share many of the properties of matrices and of lists". In the case of mtcars we can see cars being compaired by differenct specifications. This is a collection of varibles (cars) that share many properties (mpg, cyl, etc.). 
  
 ##2. Sample Properties
 ###Consider the following vasopressin levels in voles.
@@ -75,23 +81,26 @@ vole_vaso <- c(98,96,94,88,86,82,77,74,70,60,
 ###2b. What is the mean, median, sd, and interquartile range of the sample?
 
 ```{R}
-
+#find the mean, median, sd and IRQ of vole_vaso
 mean(vole_vaso)
 median(vole_vaso)
 sd(vole_vaso)
 IQR(vole_vaso)
 
 ```
-  
+mean = 58.05
+median = 59.5
+sd = 29.75
+IQR = 44.25
  
 ###2c. What is the standard error of the mean (do this with a formula!)?
 
 ```{R}
-
+#find the SE using the formula of vole_vaso
 sd(vole_vaso)/sqrt(length(vole_vaso))
 
 ```
- 
+ SE = 6.65
 ###2d. What does the standard error of the mean tell you about our estimate of the mean values of the population of vole vassopressin?
 
 The standard error tells us how well the sample represents the population. The standard error of vole vassopressin is 6.65 and therefore the probabilty that the population mean is within 6.65 units of the sample mean is 66%.
@@ -113,11 +122,13 @@ quantile(samp_vole, probs = 0.75)
   
 ###3b. Build an initial data frame for simulations with the sample sizes 5 through 20. Have 100 simulations per sample size.
 ```{R}
+#make a simulation that have a samp_size of 5-20 and 100 sims per size
 sim_vole <- data.frame(samp_size = rep(5:20, 100)) %>%
   mutate(sims = 1:n())
 ```
 ###3c. Use this data frame to get simulated upper quartiles for each sample size.
 ```{R}
+#use simulation to find upper quartiles 
 sim_vole <- sim_vole %>%
   rowwise() %>%
   mutate(upperq = quantile(sample(vole_vaso, samp_size, replace=TRUE), probs=0.75)) %>%
@@ -127,6 +138,7 @@ sim_vole <- sim_vole %>%
 ###3d. With a plot, make a guesstimate as to the best sample size for estimating the upper quartile of the population.
 
 ```{R}
+#plot upper quartiles vs sample size 
 plot(upperq ~ samp_size, data=sim_vole)
 ```
 
@@ -134,6 +146,7 @@ plot(upperq ~ samp_size, data=sim_vole)
 ###4a. With the upper quartile simulations, calculate the SD for each sample size using dplyr
 
 ```{R}
+#calculate the sd (and se for 4b) for each sample 
 sim_vole_sum <- sim_vole %>%
   group_by(samp_size) %>%
   summarise(upperq_sd = sd(upperq),
@@ -150,9 +163,40 @@ The standard error of the upper quartile tells us how close the upper quartile o
 ###4c. What is the CI of the upper quartile with a sample size of 10. What does this mean?
 
 ```{R}
-upper_ci <- quantile(sample(sim_vole$upperq, size = 10), c(0,0.66,0.95))
-
-upper_ci
+#filter out only samp_size 10
+upper_ci <- filter(sim_vole, samp_size == 10)
+#find the prob of 95 % and 5 % (95CI)
+upper_ci2 <- quantile(sample(upper_ci$upperq, size = 10), probs = c(0, 0.05, 0.95))
+ 
+upper_ci2
 ```
-  
+This tells us what the value for the upper quantile that 95 percent of the time the true value will fall within it. 
+
 ###4d. Extra Credit: Instead of having each sim calculate a upper quartile, and then sifting down to the SE of that upper quartile (or the CI), have each simulation calculate a CI. Then, for just a sample size of 10, how many CI's contain the true value of 83?
+
+```{R}
+#create data frame with sample size of 5-20 and 100 replicates
+CI_Q <- data.frame(samp_size = rep(5:20, 100))%>%
+  rowwise %>%
+  #add 95 CI and 05 CI rows
+  mutate(CI_lower = quantile(sample(vole_vaso, samp_size, replace = TRUE), probs = 0.05),
+         CI_upper = quantile(sample(vole_vaso, samp_size, replace = TRUE), probs = 0.95))
+
+# get only samp_size = 10
+
+CI_Q_10 <- filter(CI_Q, samp_size == 10) 
+
+# get only CI_upper > 83
+
+CI_Q_10_upper <- filter(CI_Q_10, CI_upper > 83)
+
+# get only CI_lower > 83
+
+CI_Q_10_upper_lower <- filter(CI_Q_10_upper, CI_lower < 83)
+
+CI_Q_10_upper_lower
+
+
+# number of samples that 83 falls between the lower and upper CI
+nrow(CI_Q_10_upper_lower)
+```
