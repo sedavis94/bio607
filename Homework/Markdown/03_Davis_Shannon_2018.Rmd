@@ -50,7 +50,7 @@ This interval 6.87 to 9.76 represents the most likly value for the true populati
 
 ### The following figure is from the website of the US national environmental laboratory. It displays sample mean concentrations, with 95% confidence intervals, of three radioactive substances. The text accompanying the figure explained that "the first plotted mean is 2.0 +- 1.1, so there is a 95% chance that the actual result is between 0.9 and 3.1, a 2.5% chance it is less than 0.9 and a 2.5% chance it is greater than 3.1." Is this a correct interpretation of a confidence interval?
 
-Yes, the confidence interval means "we are 95% confident that the true mean lies between 0.9 and 3.1." 
+No this is not worded correctly. They are using a confidence interval to represent probablity. The confidence interval means "we are 95% confident that the true mean lies between 0.9 and 3.1." We can't say anything about the probablity. 
 
 ## Book #18
 ###Amorphophallus johnsonii is a plant growing in West Africa, and it is better known as a "corpse flower." Its commin name comes from the fact that when if flowers, it gives off a "powerfull aroma of rotting fish and faeces." The flower smell this way because their principal pollinators are carrion beetles, who are attracted to such a smell. Beath observed  the number of carrion beetles that arrive per night to the flowers of this species.
@@ -91,11 +91,11 @@ I would expect the mean to be about the same. The mean is not affected by sample
 
 ### e. If you had been given 25 data points instead of 10, would youhave epected the standard deviation to be greater, less than, or about the same as this sample?
 
-I would expect the standard deviation to be smaller becasue the standard deviation is a measue of the spread. The more samples the more likely samples will fall close to the mean, lowering the standard deviation.
+I would expect the standard deviation to stay the same becasue the standard deviation is a measue of the spread. This is a population statistic and therfore samlpe size has no impact
 
 ### f. If you had been given 25 data points instead of 10, would youhave epected the standard error of the mean to be greater, less than, or about the same as this sample?
 
-Even if the standard deviation didn't change (it does) haveing a larger sample size directly affects the standard error. The standard error would be smaller because sample size is in the denominator.
+Even if the standard deviation didn't change haveing a larger sample size directly affects the standard error. The standard error would be smaller because sample size is in the denominator.
 
 
 #2
