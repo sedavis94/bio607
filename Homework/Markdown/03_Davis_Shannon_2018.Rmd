@@ -1,0 +1,224 @@
+---
+title: "03_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "September 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(forcats)
+library(RColorBrewer)
+library(gganimate)
+```
+#1
+## Book #10
+
+###Refer to the previous problem
+###a using an approximate method, provide a rough 95% CI for population mean
+
+
+```{R}
+genes <- read.csv("../data/chap04q09NumberGenesRegulated.csv")  #load in data
+mean_genes <- mean(genes$ngenes)
+
+mean_genes
+
+sd_genes <- sd(genes$ngenes)
+
+sd_genes
+
+se_genes <- sd_genes/sqrt(length(genes$ngenes)) #se sum(gene$freq) is the number of samples
+se_genes 
+
+#a rough estimation of the 95% CI is 2SE
+Upper_CI <- mean_genes + (2*se_genes)
+Lower_CI <- mean_genes - (2*se_genes)
+
+Upper_CI
+Lower_CI
+```
+
+###b provide an interpretation of the interval you calculated in part a
+
+This interval 6.87 to 9.76 represents the most likly value for the true population mean. This means that in 95% of all random samples will have a mean within these values.This confidence interval is a range likly to contain the value of the true population mean. In this case there is a 95% chance that the confidence interval (6.87 to 9.76) contains the true mean of the population. 
+
+## Book #17
+
+### The following figure is from the website of the US national environmental laboratory. It displays sample mean concentrations, with 95% confidence intervals, of three radioactive substances. The text accompanying the figure explained that "the first plotted mean is 2.0 +- 1.1, so there is a 95% chance that the actual result is between 0.9 and 3.1, a 2.5% chance it is less than 0.9 and a 2.5% chance it is greater than 3.1." Is this a correct interpretation of a confidence interval?
+
+Yes, the confidence interval means "we are 95% confident that the true mean lies between 0.9 and 3.1." 
+
+## Book #18
+###Amorphophallus johnsonii is a plant growing in West Africa, and it is better known as a "corpse flower." Its commin name comes from the fact that when if flowers, it gives off a "powerfull aroma of rotting fish and faeces." The flower smell this way because their principal pollinators are carrion beetles, who are attracted to such a smell. Beath observed  the number of carrion beetles that arrive per night to the flowers of this species.
+
+``` {R}
+beetles <- c(51, 45, 61, 76, 11, 117, 7, 132, 52, 149)
+```
+### a. What is the mean and standard deviation of the beetles per flower
+
+```{R}
+mean_beet <- mean(beetles)
+mean_beet
+
+sd_beet <- sd(beetles)
+sd_beet
+```
+
+### b. What is the standard error of this estimate of the mean?
+
+```{R}
+se_beet <- sd_beet/sqrt(length(beetles))
+se_beet
+```
+
+### c. Give an approximate 95% CI of the mean. Provide lower and upper limits.
+
+```{R}
+Upper_beet <- mean_beet +2*se_beet
+Lower_beet <- mean_beet -2*se_beet
+Upper_beet
+Lower_beet
+```
+We are 95% confident that the mean of beetles per flowers will be between 39.43 and 100.77.
+
+### d. If you had been given 25 data points instead of 10, would you expect the mean to be greater, less than, or about the same as the mean of this sample?
+
+I would expect the mean to be about the same. The mean is not affected by sample size. 
+
+### e. If you had been given 25 data points instead of 10, would youhave epected the standard deviation to be greater, less than, or about the same as this sample?
+
+I would expect the standard deviation to be smaller becasue the standard deviation is a measue of the spread. The more samples the more likely samples will fall close to the mean, lowering the standard deviation.
+
+### f. If you had been given 25 data points instead of 10, would youhave epected the standard error of the mean to be greater, less than, or about the same as this sample?
+
+Even if the standard deviation didn't change (it does) haveing a larger sample size directly affects the standard error. The standard error would be smaller because sample size is in the denominator.
+
+
+#2
+###2.1) Load the data using readr and make the Month_Names column into a factor whose levels are in order of month using forcats::fct_inorder. Use levels() - a function that takes a factor vector and returns the unique levels - on the column. Are they in the right order?
+
+```{R}
+seaice <- read_csv("../data/NH_seaice_extent_monthly_1978_2016.csv")%>%
+  mutate(Month_Name = factor(Month_Name)) %>%
+  mutate(Month_Name = fct_inorder(Month_Name))
+
+levels(seaice$Month_Name)
+
+```
+They are not in the right order yet. November is still first. 
+
+###2.2) Try fct_rev() on ice$Month_Name (I called my data frame ice when I made this). What is the order of factor levels that results? Try out  fct_relevel(), and last, fct_recode() as well. Look at the help files to learn more, and in particular try out the examples. Use these to guide how you try each function out. After trying each of these, mutate month name to get the months in the right order, from January to December. Show that it worked with levels()
+
+```{R}
+levels(fct_rev(seaice$Month_Name)) #reverses factor level
+
+
+levels(fct_relevel(seaice$Month_Name)) #relevel allows any number of levels to any location
+
+levels(fct_recode(seaice$Month_Name)) # change factor by hand
+
+
+
+
+seaice <- seaice %>%
+  mutate(Month_Name = fct_relevel(Month_Name, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) #I used fct_relevel so I could assign each month the correct level. 
+
+levels(seaice$Month_Name)
+```
+
+####Note, if you don't want a lot of output to be spit out, you can do something like levels(fct_rev(ice$Month_Name)).
+
+###2.3) Now, using what you have just learned about forcats, make a column called Season that is a copy of Month_Name. Use the function  fct_recode to turn it into a factor vector with the levels Winter, Spring, Summer, Fall in that order. Use levels() on ice$Season to show that it worked.
+
+```{R}
+seaice <- seaice %>%
+  mutate(season = fct_recode(Month_Name, 
+                             Winter = "Jan", Winter = "Feb", Winter = "Mar", 
+                             Spring = "Apr", Spring = "May", Spring = "Jun",
+                             Summer = "Jul", Summer = "Aug", Summer = "Sep",
+                             Fall = "Oct", Fall = "Nov", Fall = "Dec"))
+
+levels(seaice$season)
+```
+
+###2.4) Make a boxplot showing the variability in sea ice extent every month.
+
+```{R}
+ggplot(data = seaice,
+       mapping = aes(x = Month_Name, y = Extent)) +
+  geom_boxplot()
+```
+
+###2.4) Use dplyr to get the annual minimum sea ice extent. Plot minimum ice by year, and add a trendline (either a smooth spline or a straight line).
+
+```{R}
+seaice_sum <- seaice %>%
+  group_by(Year) %>%
+  summarise(min_ext = min(Extent))
+
+
+ggplot(seaice_sum,
+       aes(x = Year, y = min_ext)) +
+  geom_point() +
+  stat_smooth()
+```
+
+###2.5) With the original data, plot sea ice by year, with different lines for different months. Then, use facet_wrap and cut_interval(Month, n=4) to split the plot into seasons.
+
+```{R}
+seaice_year <- seaice
+
+seaice_year_plot <- ggplot(data = seaice_year,
+                           mapping = aes(x= Year, y = Extent, group = Month)) +
+  geom_line()
+
+seaice_year_plot
+
+seaice_year_plot +
+  facet_wrap(~cut_interval(Month, n=4))
+```
+
+###2.6) Last, make a line plot of sea ice by month with different lines as different years. Gussy it up with colors by year, a different theme, and whatever other annotations, changes to axes, etc., you think best show the story of this data. For ideas, see the lab.
+
+```{R}
+seaice_color <- ggplot(data = seaice,
+                       mapping = aes(x = Month_Name, y = Extent, color = Year, group = Year)) + 
+  geom_line() +
+   scale_color_gradientn(colors = brewer.pal(7,"YlGnBu")) +
+  geom_hline(yintercept = 0, color = "Blue") 
+
+ 
+
+
+seaice_color
+```
+
+###2.7 Extra Credit) Make it animated with gganimate. Just like above. See the lab for more.
+
+```{R}
+seaice_color +
+  transition_reveal(id = Year, along = Year)
+
+```
+
+###2.8 Extra Credit) Use the data and make something wholly new and awesome. Even extra extra credit for something amazing animated.
+```{R}
+library(plotly)
+seaice_3d <- plot_ly(seaice, x = ~Month_Name, y = ~Extent, z = ~Year, type = 'scatter', marker = list(color = ~Extent, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers() %>%
+  layout(scene = list(xaxis = list(title = 'Month_Name'),
+                     yaxis = list(title = 'Extent'),
+                     zaxis = list(title = 'Year'))
+         )
+
+seaice_3d
+  
+```
+This a rough draft of showing a 3d rendering of sea ice extent over year and by month. It is overlayed with a graph of extent by month. 
+
+###3 Extra Credit) Go to the internet, and find a package with some cool theme you want to use in ggplot2. Use it with one of the above plots. The cooler the theme, the more points we'll give! Note - this guy - http://byrneslab.net/project/hensel/ - is in charge of deciding how cool it is.
+
