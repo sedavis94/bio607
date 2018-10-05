@@ -1,0 +1,226 @@
+---
+title: "04_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "October 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+# 1
+## W&S chapter 6 question
+###15 For the following alternative hypotheses, give the appropriate null hypothesis:
+
+###a. Pygmy mammoth and continental mammoths differ in their mean femur lengths
+
+
+pygmy mammoths and continental mammoths have the same femur lengths
+
+###b. Patients who take phentermine and topiramate lose weight at a differetnt rate than control patients without drugs
+
+patients who take the drugs lose weight at the same rate as patients who don't
+
+###c. Patients who take phentermine ant topiramate have different proportians of their babies born with clef palates than patients not taking these drugs
+
+patients who take the drugs have the same proportion of babies born with clef palates as patients not taking drugs
+
+###d. Shoppers on average buy different amounts of candy when Christmas music is playing in the shop compared to when the usual type of music is playing
+
+shoppers buy the same amount of candy regardless of music type
+
+###e. Male white-collard manakins (a tropical bird) dance more often when females are present than when they are absent
+
+male white-collard manakins dance the same amount when exposed to females or not. 
+
+###21 Imagine that two researchers independently carry out clinical trials to test the same null hypothesis, that COx-2 selective inhibitors (which are used to treat arthritis) have no effect on the risk of cardiac arrest. They use the same population for theis study, but one experimenter uses a sample size of 60, whereas the other uses a sample size of 100. Assume that all other aspects of the studies, including significance levels, are he same between the two studies.
+
+###a. Which study has the higher probability of a Type II error?
+The smaller sample size has a higher probability of failing to reject the null hypothesis. 
+
+###b. Which study has higher power?
+The larger the sample size the larger the power. The study with 100 samples has a higher power. 
+
+###c. Which study has the higher probability of a Type I error?
+A sample that is larger increases the type I error because the p-value (which is set) depends on the size of the sample. It is more likely you will reject a true null hypothesis with a larger sample size. 
+
+###d. Should the test be one-tailed or two-tailed? why?
+This is a two-tailed because the drug could either increase or decrees the risk of cardiac arrest. The HA is that drug has an affect on cardiac arrest not whether it is positive or negative. 
+
+###29 A team of researchers conducted 100 independent hypothesis tests using a signigicance level of a = 0.05.
+
+###a. If all 100 null hypotheses were true, what is the probability that the researchers would reject none of them?
+
+The probability of 1 true null hypothesis being falsely rejected is 1-0.95 (fromt the alpha), 2 would be 1- (0.95\*0.95) and so on. Therfore the probability of having at leaset  one null hypotheisis rejected is 1- 0.95^100 or `r 1- 0.95^100`. Or `r 0.95^100 * 100`% is the odds that not a single null hypothesis will be falsly rejected. 
+
+
+###b. If all 100 null hypotheses were true, how many of there tests on average are expected to reject the null hypothesis?
+
+With a significance level of 0.05 the the probability of rejecting a true null hypothesis (type I error) is 5%. In this case 5 null hyptheses will be rejected. 
+
+##2. W&S Chapter 7
+
+### 22 In a test if Murphy's law, pieces of toast were buttered on one side and then dropped. Murphy' law predicts that they will land butter down. Out of 9821 slices, 6101 land butter down.
+
+###a. what is a 95% CI for the probability of a piece of toast landing butter down? 
+
+```{R}
+#3 Binomial - You flip bread 9821 times, and think that you have 50:50 chance of heads or tails. 
+#What's the probability of obtaining 6101 heads?
+  dbinom(40, size = 9821, prob = 1/2)
+  #plot the density to see distibution 
+  vals <- 0:9821
+  dens <- dbinom(vals, size = 9821, prob=1/2)
+  ggplot(mapping = aes(x=vals, y=dens)) +
+    geom_bar(width=0.6, stat="identity") +
+    geom_vline(xintercept = 6101, color = "red")
+
+
+prop <- 6101/9821
+prop
+
+#find confidence interval
+se <- sqrt((prop*(1-prop))/6101)
+se
+
+CI_low <- prop - 1.96*se
+CI_high <- prop +1.96*se
+
+CI_low
+CI_high
+
+binom.test(6101, 9821, 0.5, alternative = "two.sided") #binom.test gives 95% CI (and other info)
+
+
+
+```
+
+The 95% CI for the probability of a piece of toast landing butter down is from 0.612 to 0.631 (from binom.test) or similary 0.609 to 0.633 from using the equation. 
+##P value
+```{R}
+
+p_val <-  2*pbinom(6101, size = 9821, prob = 0.5, lower.tail = FALSE) #pbinom gives p value
+  
+p_val
+
+```
+The P-value is
+
+###b. Using these results is it plausible that there is a 50-50 chance of the toast landing butter down/up?
+It is not plausible that there is a 50-50 chnace of toast landing on either side. The p value is very small and the confidence interval does not include 0.5 meaning that it is extreemly unlikly that there is 50-50 chance. 
+
+
+##3) From the Lab: Many SDs and Alphas
+##Here's the exercise we started in lab. Feel free to look back copiously at the lab handout if you're getting stuck. Remember, for each step, write-out in comments what you want to do, and then follow behing with code.
+
+##Now, let's assume an average population-wide resting heart rate of 80 beats per minute with a standard deviation of 6 BPM.
+
+##A given drug speeds people's heart rates up on average by 5 BPM. What sample size do we need to achieve a power of 0.8?
+
+##3.1) Start up your simulation
+###Make a simulated data frame to look at the effects of multiple sample sizes: from 1-20, with 500 simulations per sample size, and also multiple SD values, from 3 through 10 (just 3:10, no need for non-integer values). You're going to want crossing with your intitial data frame of just sample sizes and a vector of sd values to start. Then generate samples from the appropriate random normal distribution.
+
+```{R}
+#Make a simulated data frame to look at the effects of multiple sample sizes: from 1-20, with 500 simulations per sample size, 
+pop_mean <- 80
+pop_sd <- 6
+null <- 85
+power <- 0.8
+
+sim_data<- data.frame(samp_size = rep(1:20, 500)) %>%
+#and also multiple SD values, from 3 through 10 (just 3:10, no need for non-integer values). 
+crossing(sim_sd = seq(from = 3, to = 10, by =1)) %>%
+  group_by(sim_num = 1:n())%>%
+  mutate(samp_mean = mean(rnorm(samp_size, null, pop_sd)))%>%
+  ungroup()
+
+head(sim_data)
+```
+
+
+##3.2) Z!
+###OK, now that you've done that, calculate the results from z-tests. Plot p by sample size, using facet_wrap for different SD values.
+
+```{R}
+stat_data<- sim_data %>%
+  #calculate sample SE
+  mutate(se = sim_sd/sqrt(samp_size)) %>%
+  
+  #calculate z
+  mutate(z = (samp_mean - pop_mean)/se) %>%
+  
+  #calculate p
+  mutate(p = 2*pnorm(abs(z), lower.tail=FALSE))
+
+head(stat_data)
+
+#plot samp_size by p (one for each SD)
+ggplot(data = stat_data, mapping = aes(x=samp_size, y = p)) +
+  geom_jitter(alpha = 0.4)+
+   facet_wrap(~sim_sd)
+```
+
+##3.3) P and Power
+###Now plot power for an alpha of 0.05, but use color for different SD values. Include our threshold power of 0.8.
+
+```{R}
+power_data <- stat_data %>%
+  
+  #for each sample size
+  group_by(samp_size, sim_sd) %>%
+  summarise(power = 1-(sum(p>0.05)/n())) %>% 
+  ungroup()
+
+head(power_data)
+
+#plot power by sample size and organize by sd
+ggplot(data = power_data, mapping = aes(x = samp_size, y = power, color = factor(sim_sd))) +
+  geom_line() + geom_point() + geom_line() + geom_hline(yintercept = 0.8)
+
+
+
+```
+
+##3.4) Many alphas
+###Last, use crossing again to explore changing alphas from 0.01 to 0.1. Plot power curves with different alphas as different colors, and use faceting to look at different SDs.
+
+```{R}
+alpha_data<- stat_data %>%
+  
+  #cross alpha
+  crossing(alpha = seq(from = 0.01, to = 0.1, by = 0.01))  %>%
+
+  #for each sample size, and alpha
+  group_by(samp_size, alpha) %>%
+  
+  #calculae type 2 error rate
+  summarise(error_rate = sum(p>alpha)/n()) %>%
+  
+  ungroup() %>%
+  
+  #calculate power
+  mutate(power = 1 - error_rate)
+
+alpha_data
+
+ggplot(data = alpha_data,
+       mapping = aes(x = samp_size, y = power, 
+                     color = factor(alpha))) +
+  geom_point() + geom_line() +geom_hline(yintercept = 0.8) #+ facet_wrap(~sim_sd)
+
+
+```
+
+##3.5) What does it all mean? What do you learn about how alpha and SD affect power?
+
+The smaller SD the larger the power. The smaller the alpha the larger the power. Also, as sample size increases it power increases. 
+
+##3.6) How do you think that changing the effect size would affect power?
+###You can just answer this without coding out anything. Based on what we've learned so far - what do you think?
+
+Effect size is independant of sample size and therfore it is only dependant on other factors and not sample size. 
+
