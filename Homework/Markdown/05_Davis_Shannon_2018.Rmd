@@ -9,16 +9,201 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
+library(readr)
 ```
 ##1. W&S ??2 questions
 ###8.12
-###8.24
-###9.16
-###9.27
+####a. calculate the fraction of b alleles in the population.
 
+````{R}
+BB <- 42
+Bb <- 24
+bb <- 21
+
+b_prob = (0*BB + 1*Bb + 2*bb)/ (2*(BB+Bb+bb))
+
+b_prob
+````
+
+####b. With your estimate of the fraction of b alleles, and assuming a binomial distribution calculate the expected frequency of bers with 0, 1 and 2 copies.
+
+````{R}
+b_exp = dbinom(0:2, size=2, prob=b_prob)
+exp_dist = 87*b_exp
+exp_dist
+
+````
+
+####c. Compare the observed and expected frequencies in a graph. Describe how they differ. 
+
+```{R}
+obs_dist = c(42,24,21)
+results = rbind(obs_dist,exp_dist)
+
+results
+
+str(results)
+
+colnames(results) = c("BB","Bb","bb")
+barplot(results, beside=TRUE, legend.text=c("obs","exp"))
+```
+
+
+
+###8.24
+####a. graph the relative frequency distribution for these results. What type of graph is ideal?
+
+````{R}
+#growth <- read_csv("../Data/chap08q24DodderGrowth.csv")
+
+#head(growth)
+
+growth2 <- data.frame("direction_of_growth" = c("away from volatile", "left", "right", "toward volatile"), "freq" = c(2,7,4,17))
+
+growth2
+
+#frequency of growth
+freq_grow <- ggplot(data = growth2,
+                      mapping = aes(x = direction_of_growth, y= freq)) +
+ geom_col()
+
+freq_grow
+
+#relative frequency
+growth_freq <- growth2 %>%
+  mutate(rel_freq = growth2$freq/30) %>%
+  ungroup()
+
+growth_freq
+
+#graph relative frequencies
+
+rel_freq_plot <- ggplot(data = growth_freq,
+                      mapping = aes(x = direction_of_growth,
+                                    y = rel_freq))+
+geom_col()
+
+rel_freq_plot
+
+
+````
+The idea graph is a column chart so that the relationship between the 4 options can be seen. 
+
+
+####b. What are the relative frequencies expected if the parasite is unable to detect the plant volatiles or any other cues present? Add these expected relative frequencies to your graph in part a
+```{R}
+#add in expceted freq (all 0.25)
+growth_exp_obs <- growth_freq %>%
+  mutate(exp = c(1/4,1/4,1/4,1/4)) %>%
+  ungroup()
+
+#plot both obserevd and expected 
+exp_plot <- 
+  ggplot(growth_exp_obs,
+       mapping = aes(x = direction_of_growth, y = rel_freq)) +
+  geom_col()+
+  geom_hline(yintercept = 0.25, color = "red")
+
+
+exp_plot
+
+```
+I could not figure out how to make this barchart work without transforming the table, so the expected values are represented by the red line at 0.25. 
+
+####c. Using the data, calculate the fraction of seedlings that grow toward the colatiles. What does this estimate?
+
+```{R}
+grow_volatile <- (17/30)
+
+grow_volatile
+```
+This is the proportion of dodders, in our sample, that grow toward the volatiles. This is the liklihood of a plant growing toward the volatiles in our sample.
+
+####d. Provide a standard error for your estimate. What does this standard error represent?
+
+```{R}
+SE_vol <- sqrt((grow_volatile*(1-grow_volatile))/30)
+
+SE_vol
+```
+The standard error is telling us the accuracy of how well the sample represents the population mean, This has a low standard error meaning it represents the population well. 
+
+####e. calculate the range of most-plausible values fot the fraction of dodder seedlings that grow toward the colatiles under these experimental conditions. Does it inculde or exclude the fraction expected if the parasite is unable to ditect plant volatiles or other cues present?
+
+```{R}
+CI_grow <- 1.96 * SE_vol # 95 CI  estimate
+
+CI_lower_grow <- grow_volatile - 2*CI_grow
+CI_upper_grow <- grow_volatile + 2*CI_grow
+
+
+CI_lower_grow
+CI_upper_grow
+```
+
+The 95% CI says that we are 95% certain that the range includes the true population mean. We are 95% certian that the true population mean for doddles growing toward the volatiles is betwee 0.21 and 0.92. This includes the expected value of 0.25.
+
+###9.16
+####a Calculate expected frequencies for contingency test
+```{R}
+prairie <- read_csv("../Data/chap09q16PrairieDogMultipleMating.csv") 
+
+head(prairie)
+
+con_test_prairie <- chisq.test(prairie$matingFrequency, prairie$gaveBirth, correct = FALSE)
+
+con_test_prairie
+
+con_test_prairie$expected
+
+```
+####b. Examine the expected frequencies. Do they meet the assumptions of the X^2 contingency est? If not, what steps could you take to meet the assumptions and make a test?
+No they do not meet the assumptions of the X^2  test (there are values less than 1). You could combine catagories to get a bigger sample size per group. So have less than 3 mates and more than 3 mate. 
+
+
+####c. An appropriate test shows that the number of mates of the female praire dog is associated with giving birth. DOes this mean that mating with more males increase the probability of giving birth? Can you think of an alternative explanation?
+
+Another explanation could be the more times (not differnt mates) increases the liklyhood of getting fertilized.
+
+
+###9.27
+```{R}
+widow<- read_csv("../Data/chap09q27WidowHealth.csv") 
+
+head(widow)
+
+chisq.test(widow$health_deterioration, widow$widowed, correct=FALSE)
+```
+The p value is less than alpha = 0.05 (it is 0.00374), so therfore we regect the null hypothesis. The probability of health deterioation is realted to if a person is widowed. 
 
 ##2. W&S t-test questions
 ###11.21
+####a. Draw a graph of the data, following recomended principles of good graph design. What trend is sugested?
+
+```{R}
+
+soil<- read_csv("../Data/chap11q21SoilLeadAndHurricanes.csv") 
+
+head(soil)
+
+soil_plot <- ggplot(data = soil,
+                     mapping = aes(x = Soil_lead_Before_Katrina, y = Ratio))+
+geom_col() 
+
+soil_plot
+```
+This graph show that the places that had little soil lead lost a higher percentage of lead after the hurricane. 
+
+####b. Determine the most-plausable range of values for the mean change in soil lead. Describe in words what the nature of that change is. Is an increase in soil lead consistent with the data? is a decrease in soil lead consistent?
+
+```{R}
+
+
+```
+
+####c. Test whether mean soil lead changed after hurricanes.
+
 ###12.20
 ###12.26
 ###12.30
@@ -49,18 +234,23 @@ test_case
 
 ```{R}
 get_p_from_t_test <- function(sim_data){
-test<- t.test(value ~ group, data = sim_data)
+test<- t.test(value ~ group, data = sim_data, alternative = (c("two.sided")))
 test$p.value
 }
 
 get_p_from_t_test(test_case)
+
+
+#use t.test to get p -value
+t.test(test_case$value)
+
+
 ```
 
 ##3.3 So many Ps!
 ###Write a function that takes takes some number of simulations, two means, two standard deviations, and two sample sizes as arguments and returns a vector of p values equal in length to that number of simulations. It should call your functions from 3.1 and 3.2 using replicate() or  purrr::rerun() or some other strategy to do something many times. Your call! **Extra credit - try it different ways and show using a large number of simulations and system.time() or the profileR package which way is faster.
 
 ```{R}
-#replicate(10, get_p_from_t_test(make_t_data(1, 2, 1, 2, 3, 5)))
 Many_P <- function (m1, m2, s1, s2, n1, n2, nsim){
   (replicate(nsim, get_p_from_t_test(make_t_data(m1, m2, s1, s2, n1, n2))))
 }
@@ -74,24 +264,39 @@ Many_P(1, 2, 1, 2, 3, 5, 10)
 ```{R}
 get_t_power <- function(m1, m2, s1, s2, n1, n2, nsim = 100, alpha = 0.07){
   p <- Many_P(m1, m2, s1, s2, n1, n2, nsim)
-  #p <- replicate(nsims, get_p_from_t_test(make_t_data(m1, m2, s1, s2, n1, n2)))
   num_wrong <- sum(p > alpha)
   
   1- num_wrong/nsim
 }
 
 get_t_power(1, 2, 1, 2, 3, 5, 100, 0.07)
+
+#no power.t.test (cant take 2 sds)
 ```
 
 ##3.5 Show it works
 ###Using your functions from above, explore how changing the difference between the the means of two groups interacts with the difference between two standard deviations of groups to affect the power of a t-test. Explain the results you produce. +1 Extra credit for using a color scheme from the wesanderson or beyonce package that is illuminating.
 
 ```{R}
+library(wesanderson)
+
 pow_df <- crossing(diff_m = 1:5, diff_s = 1:5, n1 = 3, n2 = 5) %>%
   rowwise() %>%
-  mutate(power = get_t_power(m1 = 0, m2 = diff_m, s1 = s1, s2 = diff_s, n1 = n1, n2 = n2, nsims=100, alpha=0.05)) %>%
-  ungroup()D                                                                       
+  mutate(power = get_t_power(m1 = 0, m2 = diff_m, s1 = 0, s2 = diff_s, n1 = n1, n2 = n2, nsim=100, alpha=0.05)) %>%
+  ungroup()  
+
+plot<- ggplot(data = pow_df,
+                      mapping = aes(x =diff_s, y = power, color = factor(diff_m)))+
+  geom_point()+
+  geom_line()+
+  scale_color_manual(values = wes_palette(18))
+
+plot
+                               
+
+
 ```
+As the diff_s goes up the power goes down. As the diff_m goes up the power goes up. This means that deiffernece of sd is negativly corrilated to power and mean is positivly correlated. 
 
 ##3.6 Extra Credit
 ###+2 Extra credit if you include a comparison between running the test with versus without equal variances - this might require you to re-write your function from 3.2 to include an argument where you specify if you want equal or unequal variance tests to be used. +1 additional extra credit for folding this into your auto-detect unequal variance function from above, but have this argument override the automatic detection of equal or unequal variances. Lots of ways to do this, some more efficient than others.

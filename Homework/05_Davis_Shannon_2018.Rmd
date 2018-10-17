@@ -1,0 +1,149 @@
+---
+title: "05_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "October 9, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+##1. W&S ??2 questions
+###8.12
+####a. calculate the fraction of b alleles in the population.
+
+````{R}
+#3 options
+#BB - Black
+#Bb - Blcak
+##bb - white
+
+#proportions
+#BB - 1/4
+#Bb - 1/2
+#bb - 1/4
+
+
+BB <- 42
+Bb <- 24
+bb <- 21
+
+b_prob = (0*BB + 1*Bb + 2*bb)/ (2*(BB+Bb+bb))
+
+b_prob
+````
+
+####b. With your estimate of the fraction of b alleles, and assuming a binomial distribution calculate the expected frequency of bers with 0, 1 and 2 copies.
+
+````{R}
+b_exp = dbinom(0:2, size=2, prob=b_prob)
+exp_dist = 87*b_exp
+exp_dist
+
+````
+
+####c. COmpare the observed and expected frequencies in a graph. Describe how they differ. 
+
+```{R}
+obs_dist = c(42,24,21)
+results = rbind(obs_dist,exp_dist)
+colnames(results) = c("BB","Bb","bb")
+barplot(results, beside=TRUE, legend.text=c("obs","exp"))
+```
+
+
+
+###8.24
+####a. graph the relative frequency distribution for these results. What type of graph is ideal?
+
+####b. What are the relative frequencies expected if the parasite is unable to detect the plant volatiles or any other cues present? Add these expected relative frequencies to your graph in part a
+
+####c. Using 
+###9.16
+###9.27
+
+
+##2. W&S t-test questions
+###11.21
+###12.20
+###12.26
+###12.30
+
+##3. Power and T
+###In class, we worked through an example of power via simulation for a two-sample t-test with equal variance and sample size. Let's go through a similar exercise, but this time, assuming we have a situation with both different sample sizes and variances.
+
+##3.1 Data Generating Process
+###Write a function that takes two means, two standard deviations, and two sample sizes as arguments. Have it return a data frame or tibble based on the inputs ready to go for a t-test!
+
+````{R}
+make_t_data <- function(m1, m2, s1, s2, n1, n2){
+  data.frame(group = c(rep("A", n1), rep("B",n2)),
+             value = rnorm(n1+n2,
+                           mean = c(rep(m1, n1), rep(m2, n2)),
+                           sd = c(rep(s1, n1), rep(s2, n2))),
+             stringsAsFactors = FALSE)
+}
+
+test_case <- make_t_data(1, 2, 1, 2, 3, 5)
+
+test_case
+
+````
+
+##3.2 P From T
+###Write a function that takes a data frame and runs a two-tailed t-test with the variances assumed to be unequal. Show it works by comparing it's p-value to that returned by t-test for the same simulated data set. Note, if you gave particular column names in the function from 3.1, you should use those here! If you are stumped on how to get a p-value, look at the help file for t.test, remembering that the output from t.test is a list! +2 Extra credit, look at ?ifelse or ?"if" and use one of them to have your function choose to use unequal variances if your variances differ by 20%.
+
+```{R}
+get_p_from_t_test <- function(sim_data){
+test<- t.test(value ~ group, data = sim_data)
+test$p.value
+}
+
+get_p_from_t_test(test_case)
+```
+
+##3.3 So many Ps!
+###Write a function that takes takes some number of simulations, two means, two standard deviations, and two sample sizes as arguments and returns a vector of p values equal in length to that number of simulations. It should call your functions from 3.1 and 3.2 using replicate() or  purrr::rerun() or some other strategy to do something many times. Your call! **Extra credit - try it different ways and show using a large number of simulations and system.time() or the profileR package which way is faster.
+
+```{R}
+#replicate(10, get_p_from_t_test(make_t_data(1, 2, 1, 2, 3, 5)))
+Many_P <- function (m1, m2, s1, s2, n1, n2, nsim){
+  (replicate(nsim, get_p_from_t_test(make_t_data(m1, m2, s1, s2, n1, n2))))
+}
+
+Many_P(1, 2, 1, 2, 3, 5, 10)
+```
+
+##3.4 I have the power
+###Write a function that takes an alpha value, some number of simulations, two means, two standard deviations, and two sample sizes as argument, and returns the power. It should call the function you wrote in 3.3. Now, make sure this works by comparing your results to the appropriate call to  power.t.test(). Do they agree? Why or why not?
+
+```{R}
+get_t_power <- function(m1, m2, s1, s2, n1, n2, nsim = 100, alpha = 0.07){
+  p <- Many_P(m1, m2, s1, s2, n1, n2, nsim)
+  #p <- replicate(nsims, get_p_from_t_test(make_t_data(m1, m2, s1, s2, n1, n2)))
+  num_wrong <- sum(p > alpha)
+  
+  1- num_wrong/nsim
+}
+
+get_t_power(1, 2, 1, 2, 3, 5, 100, 0.07)
+```
+
+##3.5 Show it works
+###Using your functions from above, explore how changing the difference between the the means of two groups interacts with the difference between two standard deviations of groups to affect the power of a t-test. Explain the results you produce. +1 Extra credit for using a color scheme from the wesanderson or beyonce package that is illuminating.
+
+```{R}
+pow_df <- crossing(diff_m = 1:5, diff_s = 1:5, n1 = 3, n2 = 5) %>%
+  rowwise() %>%
+  mutate(power = get_t_power(m1 = 0, m2 = diff_m, s1 = 0, s2 = diff_s, n1 = n1, n2 = n2, nsims=100, alpha=0.05)) %>%
+  ungroup()                                                                      
+```
+
+##3.6 Extra Credit
+###+2 Extra credit if you include a comparison between running the test with versus without equal variances - this might require you to re-write your function from 3.2 to include an argument where you specify if you want equal or unequal variance tests to be used. +1 additional extra credit for folding this into your auto-detect unequal variance function from above, but have this argument override the automatic detection of equal or unequal variances. Lots of ways to do this, some more efficient than others.
+
+##4. Extra Credit on Contingency Tables (3 points)
+###Write a function that takes a count data frame in with 2 columns of categorical predictors (characters) and 1 of counts, and returns a ??2 test for the appropriate contingency table. +1 more if it also outputs the contingency table. +3 more if it works for an n x n x n x n x .. contingency table. Show it works by comparing the results to using xtabs() and chisq.test(). You should look at the formulae in W&S here to help you.
