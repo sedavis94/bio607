@@ -11,6 +11,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(readr)
+library(broom)
 ```
 ##1. W&S ??2 questions
 ###8.12
@@ -199,14 +200,81 @@ This graph show that the places that had little soil lead lost a higher percenta
 
 ```{R}
 
-
+tidy(t.test(soil$Change)) #from broom (outputs a tibble with useful info, like confidence interval!)
 ```
+The confidence interval is between -201.47 and -48.31. This is saying that the most plausable range of chnage in lead is still a negative change. It is unlikly that the true mean would have an increase in soil lead. 
 
 ####c. Test whether mean soil lead changed after hurricanes.
 
+```{R}
+pre_hur <- mean(soil$Soil_lead_Before_Katrina)
+post_hur <- mean(soil$Soil_lead_After_Katrina)
+
+pre_hur
+post_hur
+
+mean_change <- mean(soil$Change)
+mean_change
+
+```
+Before the hurricane the average soil lead was 331.74 mg/kg and after the hirricane the average soil lead is 206.85 mg/kg. This is an average chaneg of -124.89mg/kg.
+
 ###12.20
-###12.26
+
+####a. What is the mean difference in the number of species between areas upstream and downstream of a tributary? what is the 95% CI of that mean difference?
+
+```{R}
+electirc <- read_csv("../Data/chap12q20ElectricFish.csv") 
+
+head(electirc)
+
+#test assumptions
+electirc <- electirc %>%
+  mutate(delta = speciesUpstream - speciesDownstream)
+
+
+## qq
+qqnorm(electirc$delta)
+qqline(electirc$delta)
+
+shapiro.test(electirc$delta)
+
+#everything looks good!
+
+#put to the test
+t.test(electirc$delta,
+            unequal.var = TRUE)
+
+
+```
+The mean delta of up vs down stream is -1.83 with a confidence interval of -3.95 to 0.28. 
+
+####b. test the hypothesis that the tributaries have no effect on the number of species of electirc fish.
+
+```{R}
+Ho <- 0
+```
+Out Ho is that there is no difference between up and downstream. From the test in part a we can see that 0 is within the 95% cofidence interval, so therfore we fail to reject Ho (witch is 0). Also the p-value is above 0.05.
+
+
+####c. state the assumptions that you made in part a and b.
+we assumed that the distributiaon was normal (we kind of checked with a qq). We also assumed this sample represents the population, or that it was randomly taken, 
+
+
+###12.26 Do dominate and subordinate individuals differ in the mean of giggle spectral CV?
+
+```{R}
+giggle <- read_csv("../Data/chap12q26HyenaGiggles.csv") 
+
+head(giggle)
+
+t.test(x = giggle$dominantIndividualGiggleVariation, y = giggle$subordinateIndividualGiggleVariation, paired = TRUE)
+```
+Our null hypothesis is that the difference should be 0. The 95% CI does not include this value and the p-value is less tahn 0.05, so we can reject our null hyothesis and say that there is a difference in mean giggle spectral CV.
+
 ###12.30
+
+They needed to used a two sampled t test. They are looking at the differnece between the two fish and therfore they can't reject one null hypothesis and not the other. 
 
 ##3. Power and T
 ###In class, we worked through an example of power via simulation for a two-sample t-test with equal variance and sample size. Let's go through a similar exercise, but this time, assuming we have a situation with both different sample sizes and variances.
