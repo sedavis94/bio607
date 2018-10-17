@@ -301,7 +301,7 @@ test_case
 ###Write a function that takes a data frame and runs a two-tailed t-test with the variances assumed to be unequal. Show it works by comparing it's p-value to that returned by t-test for the same simulated data set. Note, if you gave particular column names in the function from 3.1, you should use those here! If you are stumped on how to get a p-value, look at the help file for t.test, remembering that the output from t.test is a list! +2 Extra credit, look at ?ifelse or ?"if" and use one of them to have your function choose to use unequal variances if your variances differ by 20%.
 
 ```{R}
-get_p_from_t_test <- function(sim_data){
+get_p_from_t_test <- function(sim_data){ 
 test<- t.test(value ~ group, data = sim_data, alternative = (c("two.sided")))
 test$p.value
 }
