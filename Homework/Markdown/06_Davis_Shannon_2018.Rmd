@@ -19,10 +19,12 @@ library(broom)
 ##15
 ###a. Display the assocation between the two varibles in a scatter plot
 ````{R}
+#get data
 brain <- read_csv("../Data/chap16q15LanguageGreyMatter.csv")
 
 head(brain)
 
+#plot data
 ggplot(data = brain,
        mapping = aes(x = proficiency, y = greymatter))+
   geom_point()
@@ -31,19 +33,23 @@ ggplot(data = brain,
 ###b. Calculate the correlation between second language profiency and gray-matter density
 
 ```{R}
+#lm of brain
 brain_mod <- lm(greymatter~proficiency, data = brain)
 
+#plots to check the relationship of greymatter and proficiency
 plot(brain_mod, which = 1) #residual v fitted
 plot(brain_mod, which = 2)# qq plot
 plot(brain_mod, which = 4) #cooks distance
 plot(brain_mod, which = 5) #leverage v residual
 hist(residuals(brain_mod))
 
+#summary to look at the fit
 summary(brain_mod) %>% broom::glance()
 ```
 
 ###c. Test the null hypothesis of zero correlation.
 ```{R}
+#anova tests to see if there is a difference 
 anova(brain_mod) %>% broom::tidy()
 ```
 The P value is low (3.264 e -6), so we can reject the null hypothesis. 
@@ -64,12 +70,17 @@ Yes, our null hypothesis is that greymatter does not affect proficiency, and we 
 ###a. Calculate the correlation coeffcient between the taurocholate unbound fraction and the concntraion.
 
 ```{R}
+#load data
 liver <- read_csv("../Data/chap16q19LiverPreparation.csv")
 head(liver)
 
+#lm of liver
 liver_mod <- lm(concentration~unboundFraction, data = liver)
 
+#summary of lm liver 
 summary(liver_mod) %>% broom::glance()
+
+#cor gives the "r" value 
 cor(liver$concentration, liver$unboundFraction)
 ```
 The correlation coeffcient is -0.856. This number can be obtained from the summary function by taking the square root of the r.squared, but we do not know if this is negative or positive. The cor function is a simple way of getting the correlation coeffcient without having to look at the data to get the sign. 
@@ -77,6 +88,7 @@ The correlation coeffcient is -0.856. This number can be obtained from the summa
 ###b. Plot the relationship between the two varibles in a graph.
 
 ```{R}
+#plot of liver
 ggplot(data = liver,
        mapping = aes(x = concentration, y = unboundFraction))+
   geom_point()
@@ -90,10 +102,11 @@ The data does not look to be linearly related. The r value only reprsents data t
 ###d. What steps would you take wtih these data to meet the assumptions of correlation analysis?
 I would transform the data to become linear. A log transform would get this close to linear. 
 ```{R}
+#plot of log liver
 ggplot(data = liver,
        mapping = aes(x = log(concentration), y = log(unboundFraction)))+
   geom_point()
-
+#corilation coefficient of log liver
 cor(log(liver$concentration), log(liver$unboundFraction))
 ```
 
@@ -113,6 +126,7 @@ mat <- rmnorm(10, varcov = matrix(c(1,0.3, 0.3, 1), ncol=2)) %>%
 
 head(mat)
 
+#correlation coeficent 
 cor(mat$cats, mat$happiness_score)
 ```
 The correlation is 0.676. This shows us that the 2 varibles relate to eachother in a linear way. i.e one varible can explain the variability in the other.
@@ -131,14 +145,109 @@ the low confidence interval is 0.0805 and the high is 0.9158. If we take this di
 ###c.Now, what is the SE via simulation? To do this, you'll need to use cor() and get the relevant parameter from the output (remember - you get a matrix back, so, what's the right index!), replicate(), and sample() or dplyr::sample_n() with  replace=TRUE to get, let's say, 1000 correlations. How does this compare to your value above?
 
 ```{R}
+# SE simulation with 1000 correlations index is 1,2 
 SE_sim <- replicate(1000, cor(sample_n(mat, nrow(mat),replace= TRUE)) [1,2]) 
+
+#this value should compare to the above 
 sd(SE_sim)
 ```
 
 #3 W&S chapter 17
 ##19
+###a. Draw a scatter plot of these data. Which variable should be the explanatory variable (X), and which should be the responce variable(Y)?
+
+```{R}
+plants <- read_csv("../Data/chap17q19GrasslandNutrientsPlantSpecies.csv")
+
+head(plants)
+
+plant_plot <- ggplot(data = plants,
+       mapping = aes(x = nutrients, y = species))+
+  geom_point()
+
+```
+
+X should be the independant variable in this case nutrients. The y variable should be the dependant variable in this case number of species.
+
+###b. What is the rate of change in the number of plant species supported per nutrient type added? provide a standard error for your estimate.
+
+```{R}
+plant_mod <- lm(species ~ nutrients, data = plants)
+
+summary(plant_mod)
+
+```
+The rate of change is -3.339 species per nutrient. The standard error is 34.11. 
+
+###c. Add the least squares regression line to your scatter plot. What fraction of the variation in the number of plant species is "explained" by the number of nutrients added?
+```{R}
+plant_plot +
+   stat_smooth(method=lm, formula=y~x)
+
+```
+The R squared is 0.536 and this shows what proportion of the varability can be explained by the relationship between nutrients and species. 
+
+
+###d. Test the null hypothesis of no treatment effect on the number of plant species.
+```{R}
+anova(plant_mod) %>% broom::tidy()
+```
+The p value is less than 0.05 therfore we can reject the null hypothesis. 
 ##30
+###a. What is the appoximate slope of the regression line?
+
+```{R}
+teeth <- read_csv("../Data/chap17q30NuclearTeeth.csv")
+
+teeth
+
+teeth_mod <- lm(deltaC14 ~ dateOfBirth, data = teeth)
+
+summary(teeth_mod) 
+
+ggplot(data = teeth,
+       mapping = (aes(x= dateOfBirth, y = deltaC14)))+
+  geom_point()
+```
+The slope of the regression line is -16.71. 
+
+###b. Which pair of lines shows the confidence bands? What do these confidence bands tell us?
+
+The confidence bands are the narrower bands. They tell us how how close we get to predicting y for each value of x. It only has internal variability.
+
+###c. Which pair of lines shows the prediction interval? What does this prediction interval tell us?
+
+The prediction interval is the wider lines. This takes into acount standard deviation and allows us to make a predictioin about y.
+
+
 ##31
+###a. Calculate a regression line that best describes the relationship between year of painting and portion size. What is the trend? How rapidly has portion size changed in paintings?
+
+```{R}
+Jesus <- read_csv("../Data/chap17q31LastSupperPortionSize.csv")
+
+Jesus
+
+Jesus_mod <- lm(portionSize ~ year, data = Jesus)
+summary(Jesus_mod)
+
+ggplot(data = Jesus,
+       mapping = aes(x = year, y = portionSize))+
+  geom_point()
+
+Jesus_mod
+
+```
+
+The regression line has a slope of 0.003329 and an intercept of -1.1688. The line would be portionSIze = 0.003329*year - 1.1688.portiaons size is increasing over time. 
+
+
+###b. What is the most-plausible range of values for the slope of this relationship?? calculate a 95% confidence interval.
+
+
+###c. Test for a change in relative portion size painted in these works of art with the year in which they were painted.
+
+###d. Draw a residual plot of these data and examine it carefully. Can you see any cause for concern about using a linear regression? Suggest an approach that could be tried to address the problem.
 
 #4 Intervals and simulations
 
