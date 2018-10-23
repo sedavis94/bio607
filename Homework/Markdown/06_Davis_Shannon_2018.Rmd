@@ -1,0 +1,149 @@
+---
+title: "06_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "October 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(broom)
+```
+
+#COrrelation W&S chapter 16
+
+##15
+###a. Display the assocation between the two varibles in a scatter plot
+````{R}
+brain <- read_csv("../Data/chap16q15LanguageGreyMatter.csv")
+
+head(brain)
+
+ggplot(data = brain,
+       mapping = aes(x = proficiency, y = greymatter))+
+  geom_point()
+```
+
+###b. Calculate the correlation between second language profiency and gray-matter density
+
+```{R}
+brain_mod <- lm(greymatter~proficiency, data = brain)
+
+plot(brain_mod, which = 1) #residual v fitted
+plot(brain_mod, which = 2)# qq plot
+plot(brain_mod, which = 4) #cooks distance
+plot(brain_mod, which = 5) #leverage v residual
+hist(residuals(brain_mod))
+
+summary(brain_mod) %>% broom::glance()
+```
+
+###c. Test the null hypothesis of zero correlation.
+```{R}
+anova(brain_mod) %>% broom::tidy()
+```
+The P value is low (3.264 e -6), so we can reject the null hypothesis. 
+
+###d. what are your assumptions in part c?
+
+we assumed a normal distibution of both greymatter and profiencey. 
+
+###e. does the scatter plot support these assumptions?
+
+Yes, it shows that as profiencey increases so does greymatter (in a linear way)
+
+###f. Do the results demonstrate that second language proficiency affects gray-matter density in the brain? Why?
+
+Yes, our null hypothesis is that greymatter does not affect proficiency, and we rejected this hypotheis. The linear relationship between greymatter and profiency shows that greymatter has an effect on proficiency. 
+
+##19
+###a. Calculate the correlation coeffcient between the taurocholate unbound fraction and the concntraion.
+
+```{R}
+liver <- read_csv("../Data/chap16q19LiverPreparation.csv")
+head(liver)
+
+liver_mod <- lm(concentration~unboundFraction, data = liver)
+
+summary(liver_mod) %>% broom::glance()
+cor(liver$concentration, liver$unboundFraction)
+```
+The correlation coeffcient is -0.856. This number can be obtained from the summary function by taking the square root of the r.squared, but we do not know if this is negative or positive. The cor function is a simple way of getting the correlation coeffcient without having to look at the data to get the sign. 
+
+###b. Plot the relationship between the two varibles in a graph.
+
+```{R}
+ggplot(data = liver,
+       mapping = aes(x = concentration, y = unboundFraction))+
+  geom_point()
+```
+
+###c.Exame the plot in part (b). THe relationship appears to be maximally strong, yet the correlation coefficient you calculated in (a) is not near the maximum possible value. Why?
+
+The data does not look to be linearly related. The r value only reprsents data that are linearly related. This data looks to be exponentail decay. 
+
+
+###d. What steps would you take wtih these data to meet the assumptions of correlation analysis?
+I would transform the data to become linear. A log transform would get this close to linear. 
+```{R}
+ggplot(data = liver,
+       mapping = aes(x = log(concentration), y = log(unboundFraction)))+
+  geom_point()
+
+cor(log(liver$concentration), log(liver$unboundFraction))
+```
+
+#2 Correlation SE
+##Consider the following dataset
+
+###a.Are these two variables correlated? What is the output of cor() here. What does a test show you?
+
+```{R}
+##get data
+set.seed(20181011)
+library(mnormt)
+mat <- rmnorm(10, varcov = matrix(c(1,0.3, 0.3, 1), ncol=2)) %>%
+  round(2) %>%
+  as.data.frame %>%
+  rename(cats = "V1", happiness_score = "V2")
+
+head(mat)
+
+cor(mat$cats, mat$happiness_score)
+```
+The correlation is 0.676. This shows us that the 2 varibles relate to eachother in a linear way. i.e one varible can explain the variability in the other.
+
+###b.What is the SE of the correlation based on the info from cor.test()
+```{R}
+cor.test(mat$cats, mat$happiness_score) %>% broom::glance()
+
+SE<-(0.9157-0.0805)/(2*1.96)
+
+SE
+
+```
+the low confidence interval is 0.0805 and the high is 0.9158. If we take this difference and divide by 2 times 1,96 we get the standard error. In this case it is 0.213.
+
+###c.Now, what is the SE via simulation? To do this, you'll need to use cor() and get the relevant parameter from the output (remember - you get a matrix back, so, what's the right index!), replicate(), and sample() or dplyr::sample_n() with  replace=TRUE to get, let's say, 1000 correlations. How does this compare to your value above?
+
+```{R}
+SE_sim <- replicate(1000, cor(sample_n(mat, nrow(mat),replace= TRUE)) [1,2]) 
+sd(SE_sim)
+```
+
+#3 W&S chapter 17
+##19
+##30
+##31
+
+#4 Intervals and simulations
+
+##a.sing geom_abline() make a plot that has the following layers and shows that these simulated lines match up well with the fit CI. 1) the data, 2) the lm fit with a CI, and 3) simulated lines. You might have to much around to make it look as good as possible.
+
+##b.That's all well and good, but what about the prediction intervals? To each line, we can add some error drawn from the residual standard deviation. That residual can either be extracted from  summary() or you can get the sd of residuals.
+
+Now, visualize the simulated prediction interval around the fit versus the calculated prediction interval around the fit via predict. +1 extra credit for a clever visualization of all elements on one figure - however you would like
