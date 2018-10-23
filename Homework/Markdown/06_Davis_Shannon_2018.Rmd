@@ -242,7 +242,13 @@ Jesus_mod
 The regression line has a slope of 0.003329 and an intercept of -1.1688. The line would be portionSIze = 0.003329*year - 1.1688.portiaons size is increasing over time. 
 
 
-###b. What is the most-plausible range of values for the slope of this relationship?? calculate a 95% confidence interval.
+###b. What is the most-plausible range of values for the slope of this relationship? calculate a 95% confidence interval.
+
+```{R}
+confint(Jesus_mod)
+
+
+```
 
 
 ###c. Test for a change in relative portion size painted in these works of art with the year in which they were painted.
@@ -253,6 +259,44 @@ The regression line has a slope of 0.003329 and an intercept of -1.1688. The lin
 
 ##a.sing geom_abline() make a plot that has the following layers and shows that these simulated lines match up well with the fit CI. 1) the data, 2) the lm fit with a CI, and 3) simulated lines. You might have to much around to make it look as good as possible.
 
-##b.That's all well and good, but what about the prediction intervals? To each line, we can add some error drawn from the residual standard deviation. That residual can either be extracted from  summary() or you can get the sd of residuals.
+```{R}
+deet <- read.csv("../data/17q24DEETMosquiteBites.csv")
+ggplot(deet, aes(dose, bites)) +
+  geom_point() +
+  stat_smooth(method=lm)
 
-Now, visualize the simulated prediction interval around the fit versus the calculated prediction interval around the fit via predict. +1 extra credit for a clever visualization of all elements on one figure - however you would like
+deet_mod <- lm(bites ~ dose, data = deet)
+
+vcov(deet_mod)
+
+coef_sim <- rmnorm(100, mean = coef(deet_mod), varcov = vcov(deet_mod)) %>%
+  as.data.frame
+
+
+ggplot(data = deet,
+       mapping = aes(x = dose, y = bites))+
+  geom_point()+
+  geom_abline(data = coef_sim,
+              mapping = aes(slope = dose, intercept =`(Intercept)`), alpha = 0.4) +
+  stat_smooth(data = deet, method=lm, fill = "pink")
+```
+
+##b.That's all well and good, but what about the prediction intervals? To each line, we can add some error drawn from the residual standard deviation. That residual can either be extracted from  summary() or you can get the sd of residuals.
+##Now, visualize the simulated prediction interval around the fit versus the calculated prediction interval around the fit via predict. +1 extra credit for a clever visualization of all elements on one figure - however you would like
+
+```{R}
+coef_sims <- coef_sims %>%
+  mutate(error = rnorm(n(), 0, sd(deet_mod$residuals)))
+
+
+pred_frame <- predict(deet_mod, interval="prediction") %>% cbind(deet)
+
+
+ggplot(deet, aes(dose, bites)) +
+  geom_point() +
+  geom_abline(data = coef_sims, aes(slope = dose, intercept = error+`(Intercept)`), alpha = 0.5, color = "purple") +
+  geom_ribbon(data = pred_frame, aes(ymin = lwr, ymax = upr), fill = "green", alpha = 0.2) +
+  geom_abline(data = coef_sims, aes(slope = dose, intercept = `(Intercept)`), alpha = 0.5) +
+  stat_smooth(data = deet, method=lm, fill = "red")
+
+```
