@@ -135,7 +135,7 @@ The correlation is 0.676. This shows us that the 2 varibles relate to eachother 
 ```{R}
 cor.test(mat$cats, mat$happiness_score) %>% broom::glance()
 
-SE<-(0.9157-0.0805)/(2*1.96)
+SE<- ##(0.9157-0.0805)/(2*1.96)
 
 SE
 
@@ -149,7 +149,8 @@ the low confidence interval is 0.0805 and the high is 0.9158. If we take this di
 SE_sim <- replicate(1000, cor(sample_n(mat, nrow(mat),replace= TRUE)) [1,2]) 
 
 #this value should compare to the above 
-sd(SE_sim)
+mean(SE_sim)
+sd(SE_sim) $# this is the standard error of the estimate 
 ```
 
 #3 W&S chapter 17
@@ -253,7 +254,17 @@ confint(Jesus_mod)
 
 ###c. Test for a change in relative portion size painted in these works of art with the year in which they were painted.
 
+```{R}
+anova(Jesus_mod)
+
+```
+
 ###d. Draw a residual plot of these data and examine it carefully. Can you see any cause for concern about using a linear regression? Suggest an approach that could be tried to address the problem.
+
+```{R}
+
+plot(Jesus_mod, which = 1)
+```
 
 #4 Intervals and simulations
 
