@@ -127,7 +127,7 @@ mat <- rmnorm(10, varcov = matrix(c(1,0.3, 0.3, 1), ncol=2)) %>%
 head(mat)
 
 #correlation coeficent 
-cor(mat$cats, mat$happiness_score)
+cor_mat <- cor.test(mat$cats, mat$happiness_score)
 ```
 The correlation is 0.676. This shows us that the 2 varibles relate to eachother in a linear way. i.e one varible can explain the variability in the other.
 
@@ -135,12 +135,12 @@ The correlation is 0.676. This shows us that the 2 varibles relate to eachother 
 ```{R}
 cor.test(mat$cats, mat$happiness_score) %>% broom::glance()
 
-SE<- ##(0.9157-0.0805)/(2*1.96)
+SE<- sqrt((1-(cor_mat$estimate^2))/(length(mat$cats-2)))
 
 SE
 
 ```
-the low confidence interval is 0.0805 and the high is 0.9158. If we take this difference and divide by 2 times 1,96 we get the standard error. In this case it is 0.213.
+the low confidence interval is 0.0805 and the high is 0.9158. Using the equation above, we get the standard error. In this case it is 0.233.
 
 ###c.Now, what is the SE via simulation? To do this, you'll need to use cor() and get the relevant parameter from the output (remember - you get a matrix back, so, what's the right index!), replicate(), and sample() or dplyr::sample_n() with  replace=TRUE to get, let's say, 1000 correlations. How does this compare to your value above?
 
@@ -150,7 +150,7 @@ SE_sim <- replicate(1000, cor(sample_n(mat, nrow(mat),replace= TRUE)) [1,2])
 
 #this value should compare to the above 
 mean(SE_sim)
-sd(SE_sim) $# this is the standard error of the estimate 
+sd(SE_sim) # this is the standard error of the estimate 
 ```
 
 #3 W&S chapter 17
@@ -166,6 +166,7 @@ plant_plot <- ggplot(data = plants,
        mapping = aes(x = nutrients, y = species))+
   geom_point()
 
+plant_plot
 ```
 
 X should be the independant variable in this case nutrients. The y variable should be the dependant variable in this case number of species.
@@ -194,6 +195,7 @@ The R squared is 0.536 and this shows what proportion of the varability can be e
 anova(plant_mod) %>% broom::tidy()
 ```
 The p value is less than 0.05 therfore we can reject the null hypothesis. 
+
 ##30
 ###a. What is the appoximate slope of the regression line?
 
@@ -266,9 +268,11 @@ anova(Jesus_mod)
 plot(Jesus_mod, which = 1)
 ```
 
+There is some casue for concern both at low and high end where it does not fall along the zero residual line. 
+
 #4 Intervals and simulations
 
-##a.sing geom_abline() make a plot that has the following layers and shows that these simulated lines match up well with the fit CI. 1) the data, 2) the lm fit with a CI, and 3) simulated lines. You might have to much around to make it look as good as possible.
+##a.Using geom_abline() make a plot that has the following layers and shows that these simulated lines match up well with the fit CI. 1) the data, 2) the lm fit with a CI, and 3) simulated lines. You might have to much around to make it look as good as possible.
 
 ```{R}
 deet <- read.csv("../data/17q24DEETMosquiteBites.csv")
@@ -296,7 +300,7 @@ ggplot(data = deet,
 ##Now, visualize the simulated prediction interval around the fit versus the calculated prediction interval around the fit via predict. +1 extra credit for a clever visualization of all elements on one figure - however you would like
 
 ```{R}
-coef_sims <- coef_sims %>%
+coef_sim <- coef_sim %>%
   mutate(error = rnorm(n(), 0, sd(deet_mod$residuals)))
 
 
@@ -305,9 +309,9 @@ pred_frame <- predict(deet_mod, interval="prediction") %>% cbind(deet)
 
 ggplot(deet, aes(dose, bites)) +
   geom_point() +
-  geom_abline(data = coef_sims, aes(slope = dose, intercept = error+`(Intercept)`), alpha = 0.5, color = "purple") +
+  geom_abline(data = coef_sim, aes(slope = dose, intercept = error+`(Intercept)`), alpha = 0.5, color = "purple") +
   geom_ribbon(data = pred_frame, aes(ymin = lwr, ymax = upr), fill = "green", alpha = 0.2) +
-  geom_abline(data = coef_sims, aes(slope = dose, intercept = `(Intercept)`), alpha = 0.5) +
+  geom_abline(data = coef_sim, aes(slope = dose, intercept = `(Intercept)`), alpha = 0.5) +
   stat_smooth(data = deet, method=lm, fill = "red")
 
 ```
