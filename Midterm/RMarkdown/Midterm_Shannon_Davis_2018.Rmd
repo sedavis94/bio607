@@ -78,7 +78,7 @@ seal_data_fun <- function(slope, intercept, sigma, min = 958, max = 8353){
 seal_start <- seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = 5.6805)
 
 seal_start %>%
-   mutate(mod = purrr:::map(seal_start$length.cm, ~lm(length.cm ~ age.days))) %>%
+   mutate(mod = purrr:::map(seal_start$slope, ~lm(length.cm ~ age.days))) %>%
    mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
 
 seal_start
@@ -89,8 +89,12 @@ slope_num
 
 seal_slope <- seal_data_fun(slope = slope_num, intercept = 115.767, sigma = 5.6805)
 seal_slope %>%
-   mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days))) %>%
+   mutate(mod = purrr:::map(seal_slope$slope, ~lm(length.cm ~ age.days))) %>%
    mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
+
+seal_slope
+
+anova(seal_slope, length.cm ~ age.days)
 
 ggplot(data = seal_slope,
        mapping = aes(x = age.days,
@@ -115,6 +119,102 @@ slope_test
 
 
 ```
+```{R}
+seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
+head(seals)
+hist(seals$age.days)
+
+p_from_f_test <- function(samp_size = 1500, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
+ 
+  # Generate Normal Distribution for Seal Age 
+  age.days <- runif(samp_size, min, max)
+  
+  # Generate Data for Seal Age and Seal Length 
+  seal_data <- data.frame(intercept = intercept, sigma = sigma, age.days = age.days, 
+                        length.cm = rnorm(samp_size, intercept + slope * age.days, sigma)) 
+  # Compute Linear Regression
+  seal_mod <- lm(length.cm~age.days, seal_data)
+  # ANOVA 
+  seal_anova <- anova(seal_mod)
+  
+  # Extract F-Test P-Value
+  seal_p <- seal_anova$`Pr(>F)`[1]
+  
+  return(seal_p)
+}
+
+seal_start <- p_from_f_test()
+
+seal_start
+
+pow_from_f_test <- function(nsims = 100, alpha =0.05, samp_size = 10, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
+  
+  # Apply p nsims times
+  p <- replicate(nsims, p_from_f_test(samp_size, slope, intercept, sigma, min, max))
+  
+  # Calculate the number of p values that are incorrect given that we should be rejecting the null
+  num_wrong <- sum(p > alpha)
+  
+  # Return power
+  power <- 1 - num_wrong/nsims
+  
+  return(power)
+}
+
+
+pow_data_slope <- crossing(alpha_diff = seq(0.01,0.05,0.01),
+                   size_diff = nrow(seals),
+                   slope_diff = seq (0.001 ,0.003, 0.0001), 
+                  intercept_diff = 115.767,
+                   sigma_diff = 5.6805) %>%
+                  
+  rowwise() %>%
+  mutate(power = pow_from_f_test(alpha = alpha_diff, 
+                           slope = slope_diff)) %>%
+  ungroup()
+
+
+pow_data_slope
+
+
+###slope
+slope_plot <- ggplot(pow_data_slope, 
+                     mapping = aes(x = slope_diff, y = power, color = factor(alpha_diff)))+
+  geom_point()+
+  geom_line()
+
+slope_plot
+
+
+###sigma
+
+pow_data_sigma <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
+                   size_diff = nrow(seals),
+                   slope_diff = 0.00237, 
+                  intercept_diff = 115.767,
+                   sigma_diff = seq(3, 8, 1)) %>%
+                  
+  rowwise() %>%
+  mutate(power = pow_from_f_test(alpha = alpha_diff, 
+                           sigma = sigma_diff)) %>%
+  ungroup()
+
+
+pow_data_sigma
+
+
+###plot
+sigma_plot <- ggplot(pow_data_sigma, 
+                     mapping = aes(x = sigma_diff, y = power, color = factor(alpha_diff)))+
+  geom_point()+
+  geom_line()
+
+sigma_plot
+```
+
+
+
+
 
 ```{R}
 
@@ -200,6 +300,116 @@ ggplot(data=seal_sim_slope_power, mapping = aes(x=slope, y=power)) +
   geom_point() +
   geom_line() 
 ```
+
+
+
+```{R}
+sim_parameters <- data.frame(intercept = c(100, 115,120,125),
+                      slope= 0.00237) %>%
+  crossing(residual_sd = 3:8) %>%
+  crossing(sample_size = 5:15) %>%    #looking at sample size, intercept, residual
+  #set up sampling 
+  group_by(intercept, slope, residual_sd, sample_size) %>%
+  expand(reps= 1:sample_size) %>%
+  ungroup() %>%
+  #replicate for simulations 
+  crossing(sim= 1:100) %>% 
+  mutate(age.days= runif(n(), 958, 8353)) %>% 
+           mutate(length.cm = rnorm(n(), intercept + slope* age.days,
+                                    residual_sd)) %>%
+  ungroup()
+  ##fit models##   
+  
+ lim_fit <- function(sim_parameters){ 
+  fit <- sim_parameters %>% 
+    group_by(sim, intercept, slope, residual_sd, sample_size) %>%
+    nest() %>%
+    mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days, data=.))) %>%
+    mutate(coefs = purrr::map(mod, ~broom::tidy(.))) %>%
+    unnest(coefs) %>%
+    ungroup() %>%
+    filter(term == "age.days")
+  }
+sim_fit <- lim_fit(sim_parameters= sim_parameters)  
+#power for intercept change 
+ pow_intercept <- sim_fit %>% 
+   crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
+   group_by(intercept, alpha)%>% 
+   mutate(power=1-sum(p.value>alpha)/n()) %>%
+   ungroup()
+###Rinse and repeat for residual sd, and sample size
+pow_resid <- sim_fit %>% 
+  crossing(alpha=c(0.001, 0.01, 0.05, 0.1)) %>%
+  group_by(residual_sd, alpha) %>%
+  mutate(power= 1- sum(p.value>alpha)/n()) %>%
+  ungroup()
+pow_samp_siz <- sim_fit %>% 
+  crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
+  group_by(sample_size, alpha) %>% 
+  mutate(power=  1- sum(p.value>alpha)/n()) %>%
+  ungroup()
+#plot 
+inter_plot <- ggplot(data = pow_intercept, 
+       mapping = aes(x = intercept, y = power, color = factor(alpha))) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+resid_plot<- ggplot(data = pow_resid, 
+       mapping = aes(x = residual_sd, y = power, color = factor(alpha))) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+samp_siz_plot <- ggplot(data = pow_samp_siz, 
+       mapping = aes(x = sample_size, y = power, color = factor(alpha))) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+#visualize#
+samp_siz_plot
+resid_plot
+inter_plot
+```
+Change in intercept did not have a significant effect on power, increasing residual variance had a negative effect on power and larger sample sizes increased power. 
+
+```{r extra credit}
+
+sim_log<- data.frame(intercept = 115.767,
+                      slope= 0.00237, residual_sd = 5.6805) %>%
+ crossing(sample_size = 5:10) %>%  
+  group_by(sample_size) %>%
+  expand(reps= 1:sample_size) %>%
+  ungroup() %>%
+  #replicate for simulations 
+  crossing(sim= 1:100) %>% 
+  mutate(age.days= rlnorm(n(),log(3730.246),log(1293.485 )))%>%
+    mutate(length.cm= rnorm(n(), 115.767 + 0.00237* age.days,
+                                    5.6805))%>%
+  ungroup()
+#fit
+log_fit <- sim_log %>% 
+    group_by(sim, sample_size) %>%
+    nest() %>%
+    mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days, data=.))) %>%
+    mutate(coefs = purrr::map(mod, ~broom::tidy(.))) %>%
+    unnest(coefs) %>%
+    ungroup() %>%
+    filter(term == "age.days")
+#power 
+pow_age_distrib <- log_fit %>% 
+  crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
+  group_by(sample_size, alpha) %>% 
+  mutate(power=  1- sum(p.value>alpha)/n()) %>%
+  ungroup()
+log_dis_plot <- ggplot(data = pow_age_distrib, 
+       mapping = aes(x = sample_size, y = power, color = factor(alpha))) +
+  geom_point() +
+  geom_line() +
+  theme_bw()
+log_dis_plot
+samp_siz_plot
+
+```
+
 
 ###Extra credit 1 - test whether the distribution of ages alters power: 3 points
 
