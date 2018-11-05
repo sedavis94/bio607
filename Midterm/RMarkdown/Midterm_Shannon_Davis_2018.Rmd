@@ -57,7 +57,7 @@ library(purrr)
 
 ###slope = 0.00237, intercept=115.767, sigma = 5.6805, range of seal ages = 958 to 8353, or, if you prefer, seal ages ??? N(3730.246, 1293.485). Your call what distribution to use for seal age simulation.
 
-```{R}
+```
 
 seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
 head(seals)
@@ -124,7 +124,7 @@ seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
 head(seals)
 hist(seals$age.days)
 
-p_from_f_test <- function(samp_size = 1500, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
+p_from_f_test <- function(samp_size = 10, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
  
   # Generate Normal Distribution for Seal Age 
   age.days <- runif(samp_size, min, max)
@@ -147,7 +147,7 @@ seal_start <- p_from_f_test()
 
 seal_start
 
-pow_from_f_test <- function(nsims = 100, alpha =0.05, samp_size = 10, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
+pow_from_f_test <- function(nsims = 1000, alpha =0.05, samp_size = 10, slope = 0.00237, intercept = 115.767, sigma = 5.6805, min = 958, max = 8353){
   
   # Apply p nsims times
   p <- replicate(nsims, p_from_f_test(samp_size, slope, intercept, sigma, min, max))
@@ -161,8 +161,8 @@ pow_from_f_test <- function(nsims = 100, alpha =0.05, samp_size = 10, slope = 0.
   return(power)
 }
 
-
-pow_data_slope <- crossing(alpha_diff = seq(0.01,0.05,0.01),
+#slope
+pow_data_slope <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
                    size_diff = nrow(seals),
                    slope_diff = seq (0.001 ,0.003, 0.0001), 
                   intercept_diff = 115.767,
@@ -177,7 +177,7 @@ pow_data_slope <- crossing(alpha_diff = seq(0.01,0.05,0.01),
 pow_data_slope
 
 
-###slope
+###slope_plot
 slope_plot <- ggplot(pow_data_slope, 
                      mapping = aes(x = slope_diff, y = power, color = factor(alpha_diff)))+
   geom_point()+
@@ -189,9 +189,6 @@ slope_plot
 ###sigma
 
 pow_data_sigma <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
-                   size_diff = nrow(seals),
-                   slope_diff = 0.00237, 
-                  intercept_diff = 115.767,
                    sigma_diff = seq(3, 8, 1)) %>%
                   
   rowwise() %>%
@@ -210,100 +207,37 @@ sigma_plot <- ggplot(pow_data_sigma,
   geom_line()
 
 sigma_plot
-```
 
 
+###intercept
 
-
-
-```{R}
-
-#########
-
-int_num <- seq(110, 120, 1)
-int_num
-
-#seal_intercept <-seal_data_fun(slope = 0.00237, intercept = int_num, sigma = 5.6805)
-#seal_intercept
-
-######
-
-sigma_num <- seq(1, 10, 1)
-sigma_num
-
-
-#seal_sigma <- seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = sigma_num)
-#seal_sigma
-
-
-
-
-#ggplot(seal_slope, aes(x=age.days,
-                    # y=length.cm))+
-# geom_point()+
-# geom_abline(intercept = seal_slope$intercept, slope = seal_slope$slope)
-
-
-
-#seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = 5.6805)
-
-###ALL
-seal_test <- seal_data_fun(slope = slope_num, intercept = int_num, sigma = sigma_num)
-seal_test
-
-
-ggplot(seal_test, aes(x=age.days,
-                      y=length.cm))+
- geom_point()+
- geom_abline(intercept = seal_test$intercept, slope = seal_test$slope)
-
-
-
-
-get_p_from_f <- function(model){
- test = anova(model)
- test$`Pr(>f)`
-}
-
-```
-
-```{R}
-#power analysis
-
-seal_sim_slope <- seal_start%>%
-  group_by(1:n())%>%
-   mutate(sample = mean(rnorm(slope))) %>%
+pow_data_int <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
+                  intercept_diff = seq(110,120, 1)) %>%
+                  
+  rowwise() %>%
+  mutate(power = pow_from_f_test(alpha = alpha_diff, 
+                           intercept = intercept_diff)) %>%
   ungroup()
 
 
-
-seal_sim_slope
-
-seal_sim_slope <- seal_sim_slope %>%
-  mutate(slope_se = 4.467e-05) %>%
-  mutate(z = (slope - 2.371e-03)/slope_se)%>%
-  mutate(p = 2*pnorm(abs(z), lower.tail = FALSE))
-
-seal_sim_slope
-
-ggplot(data = seal_sim_slope,
-       mapping = aes(x = slope, y = p))+
-  geom_point()
+pow_data_int
 
 
-seal_sim_slope_power <- seal_sim_slope %>%
-  group_by(slope)%>%
-  summarise(power = 1-sum(p>0.05/n())) %>%
-  ungroup()
+###plot
+int_plot <- ggplot(pow_data_int, 
+                     mapping = aes(x = intercept_diff, y = power, color = factor(alpha_diff)))+
+  geom_point()+
+  geom_line()
 
-ggplot(data=seal_sim_slope_power, mapping = aes(x=slope, y=power)) +
-  geom_point() +
-  geom_line() 
+int_plot
 ```
 
 
 
+
 ```{R}
+
+#Hannah
 sim_parameters <- data.frame(intercept = c(100, 115,120,125),
                       slope= 0.00237) %>%
   crossing(residual_sd = 3:8) %>%
@@ -371,44 +305,6 @@ inter_plot
 ```
 Change in intercept did not have a significant effect on power, increasing residual variance had a negative effect on power and larger sample sizes increased power. 
 
-```{r extra credit}
-
-sim_log<- data.frame(intercept = 115.767,
-                      slope= 0.00237, residual_sd = 5.6805) %>%
- crossing(sample_size = 5:10) %>%  
-  group_by(sample_size) %>%
-  expand(reps= 1:sample_size) %>%
-  ungroup() %>%
-  #replicate for simulations 
-  crossing(sim= 1:100) %>% 
-  mutate(age.days= rlnorm(n(),log(3730.246),log(1293.485 )))%>%
-    mutate(length.cm= rnorm(n(), 115.767 + 0.00237* age.days,
-                                    5.6805))%>%
-  ungroup()
-#fit
-log_fit <- sim_log %>% 
-    group_by(sim, sample_size) %>%
-    nest() %>%
-    mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days, data=.))) %>%
-    mutate(coefs = purrr::map(mod, ~broom::tidy(.))) %>%
-    unnest(coefs) %>%
-    ungroup() %>%
-    filter(term == "age.days")
-#power 
-pow_age_distrib <- log_fit %>% 
-  crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
-  group_by(sample_size, alpha) %>% 
-  mutate(power=  1- sum(p.value>alpha)/n()) %>%
-  ungroup()
-log_dis_plot <- ggplot(data = pow_age_distrib, 
-       mapping = aes(x = sample_size, y = power, color = factor(alpha))) +
-  geom_point() +
-  geom_line() +
-  theme_bw()
-log_dis_plot
-samp_siz_plot
-
-```
 
 
 ###Extra credit 1 - test whether the distribution of ages alters power: 3 points
