@@ -1,0 +1,321 @@
+---
+title: "Midterm_Davis_Shannon_2018"
+author: "Shannon Davis"
+date: "October 26, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(broom)
+library(viridis)
+library(profileModel)
+library(bbmle)
+library(brms)
+library(bayesplot)
+library(purrr)
+```
+
+#Midterm Exam
+##Biol 607
+##October 26, 2018
+##Welcome to your mid-term! I hope you enjoy. Note, in all of the questions below, there are easy not so code intensive ways of doing it, and there are longer more involved, yet still workable ways to answer them. I would suggest that before you dive into analyses, you do the following. First, breathe. Second, think about the steps you need to execute to get answer the question. Write them down. Third, for those parts of problems that require code, put those steps, in sequence, in comments in your script file. Use those as signposts to step-by-step walk through the things you need to do. Fourth, go over these steps, and see if there are any that could be easily abstracted into functions, could be vectorized, or otherwise done so that you can expend the minimum amount of effort on the problem to get the correct answer.
+
+###You will be graded on
+###1. Correct answers
+###2. Showing how you arrived at that answer
+###3. Well formatted and documented code
+###4. Thoughtful answers
+
+
+###The exam will be due on Nov 9th, 5pm.
+
+##1) Sampling your system (10 points)
+###Each of you has a study system your work in and a question of interest. Give an example of one variable that you would sample in order to get a sense of its variation in nature. Describe, in detail, how you would sample for the population of that variable in order to understand its distribution. Questions to consider include, but are not limited to: Just what is your sample versus your population? What would your sampling design be? Why would you design it that particular way? What are potential confounding influences of both sampling technique and sample design that you need to be careful to avoid? What statistical distribution might the variable take, and why?
+
+```{R}
+
+
+```
+
+##2) Let's get philosophical. (10 points)
+###Are you a frequentist, likelihoodist, or Bayesian? Why? Include in your answer why you prefer the inferential tools (e.g. confidence intervals, test statistics, posterior probabilities, etc.) of your chosen worldview and why you do not like the ones of the other one. This includes defining just what those different tools mean! extra credit for citing and discussing outside sources - one point per source/point
+
+##3) Power (20 points)
+###We have a lot of aspects of the sample of data that we collect which can alter the power of our linear regressions.
+
+###Slope
+###Intercept
+###Residual variance
+###Sample Size
+###Range of X values
+###Choose three of the above properties and demonstrate how they alter power of an F-test from a linear regression using at least three different alpha levels (more if you want!) As a baseline of the parameters, let's use the information from the seal data:
+
+###slope = 0.00237, intercept=115.767, sigma = 5.6805, range of seal ages = 958 to 8353, or, if you prefer, seal ages ??? N(3730.246, 1293.485). Your call what distribution to use for seal age simulation.
+
+```{R}
+
+seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
+head(seals)
+hist(seals$age.days)
+
+#need a data frame with all parameters
+seal_data_fun <- function(slope, intercept, sigma, min = 958, max = 8353){
+  data.frame(slope)%>%
+    crossing(intercept, sigma)%>%
+    #need some sampling data with x's
+    mutate(age.days = runif(n(), min, max))%>%
+    #data generating process from x( y= a+ bx)
+    mutate(length.cm = rnorm(n(), intercept + slope * age.days, sigma))
+}
+
+
+
+seal_start <- seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = 5.6805)
+
+seal_start %>%
+   mutate(mod = purrr:::map(seal_start$length.cm, ~lm(length.cm ~ age.days))) %>%
+   mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
+
+seal_start
+
+####Slope 
+slope_num <- rep(seq(0.001, 0.002, 0.0001),10)
+slope_num
+
+seal_slope <- seal_data_fun(slope = slope_num, intercept = 115.767, sigma = 5.6805)
+seal_slope %>%
+   mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days))) %>%
+   mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
+
+ggplot(data = seal_slope,
+       mapping = aes(x = age.days,
+                     y = length.cm))+
+  geom_point()
+
+
+lm_seal_slope <- lm(length.cm ~ age.days, data = seal_slope)
+
+slope_test <-anova(lm_seal_slope)
+
+slope_test
+
+
+
+
+
+
+
+
+
+
+
+```
+
+```{R}
+
+#########
+
+int_num <- seq(110, 120, 1)
+int_num
+
+#seal_intercept <-seal_data_fun(slope = 0.00237, intercept = int_num, sigma = 5.6805)
+#seal_intercept
+
+######
+
+sigma_num <- seq(1, 10, 1)
+sigma_num
+
+
+#seal_sigma <- seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = sigma_num)
+#seal_sigma
+
+
+
+
+#ggplot(seal_slope, aes(x=age.days,
+                    # y=length.cm))+
+# geom_point()+
+# geom_abline(intercept = seal_slope$intercept, slope = seal_slope$slope)
+
+
+
+#seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = 5.6805)
+
+###ALL
+seal_test <- seal_data_fun(slope = slope_num, intercept = int_num, sigma = sigma_num)
+seal_test
+
+
+ggplot(seal_test, aes(x=age.days,
+                      y=length.cm))+
+ geom_point()+
+ geom_abline(intercept = seal_test$intercept, slope = seal_test$slope)
+
+
+
+
+get_p_from_f <- function(model){
+ test = anova(model)
+ test$`Pr(>f)`
+}
+
+```
+
+```{R}
+#power analysis
+
+seal_sim_slope <- seal_start%>%
+  group_by(1:n())%>%
+   mutate(sample = mean(rnorm(slope))) %>%
+  ungroup()
+
+
+
+seal_sim_slope
+
+seal_sim_slope <- seal_sim_slope %>%
+  mutate(slope_se = 4.467e-05) %>%
+  mutate(z = (slope - 2.371e-03)/slope_se)%>%
+  mutate(p = 2*pnorm(abs(z), lower.tail = FALSE))
+
+seal_sim_slope
+
+ggplot(data = seal_sim_slope,
+       mapping = aes(x = slope, y = p))+
+  geom_point()
+
+
+seal_sim_slope_power <- seal_sim_slope %>%
+  group_by(slope)%>%
+  summarise(power = 1-sum(p>0.05/n())) %>%
+  ungroup()
+
+ggplot(data=seal_sim_slope_power, mapping = aes(x=slope, y=power)) +
+  geom_point() +
+  geom_line() 
+```
+
+###Extra credit 1 - test whether the distribution of ages alters power: 3 points
+
+```{R}
+
+```
+
+###Extra Credit 2 Choose just one of the above elements to vary. Using likelihood to fit models, repeat your power analysis for a chi-square likelihood ratio test. You can use glm(), bbmle or some other means of fitting and obtaining a LRT at your discretion. 5 points.
+
+```{R}
+
+```
+
+##4) Bayes Theorem
+###I've referenced the following figure a few times. I'd like you to demonstrate your understanding of Bayes Theorem by hand showing what the probability of the sun exploding is given the data. Assume that your prior probability that the sun explodes is p(Sun Explodes) = 0.0001. The rest of the information 
+```{R}
+
+P_SE <- 35/36 #probability that the dice is says it is exploding  
+P_E <- 0.0001 #probability the sun explodes 
+
+#P(T) = P(T/E)*P(E)+P(T/N)*P(N)
+
+P_SN <- 1/36 #probability that the dice is saying the sun exploded but it did not
+P_N <- 1-P_E  #probaility of the sun not exploding 
+
+P_S <- P_SE*P_E+P_SN*P_N
+
+P_S #marginal 
+
+
+P_ES <- (P_SE * P_E)/P_S
+
+P_ES  #probability the sun explodes given the dice tells you it is exploding 
+
+```
+
+##5) Quailing at the Prospect of Linear Models
+###I'd like us to walk through the three different 'engines' that we have learned about to fit linear models. To motivate this, we'll look at Burness et al.'s 2012 study "Post-hatch heat warms adult beaks: irreversible physiological plasticity in Japanese quail http://rspb.royalsocietypublishing.org/content/280/1767/20131436.short the data for which they have made available at Data Dryad at http://datadryad.org/resource/doi:10.5061/dryad.gs661. We'll be looking at the morphology data.
+
+##5.1 Three fits (10 points)
+###To begin with, I'd like you to fit the relationship that describes how Tarsus (leg) length predicts upper beak (Culmen) length. Fit this relationship using least squares, likelihood, and Bayesian techniques. For each fit, demonstrate that the necessary assumptions have been met. Note, functions used to fit with likelihood and Bayes may or may not behave well when fed NAs. So look out for those errors.
+
+```{R}
+morph <- read_csv("../Data/Morphology data.csv")
+
+#least squares
+morph_ls_mod <- lm(mprph$`Culmen (mm)`~ morph$`Tarsus (mm)`)
+
+  #take a look
+plot(morph_ls_mod, which = 1) #looks good!
+plot(morph_ls_mod, which = 2) #looks okay.. ends are weird 
+
+summary(morph_ls_mod)
+
+  #log transform
+morph_ls_mod_log <- lm(log(mprph$`Culmen (mm)`)~ log(morph$`Tarsus (mm)`))
+
+  #take a look
+plot(morph_ls_mod_log, which = 1) #looks good!
+plot(morph_ls_mod_log, which = 2) #looks okay.. low end weird 
+
+summary(morph_ls_mod_log)
+                       
+#likelihood
+
+like_fun <- function(slope, intercept, sd){
+  #data
+  fit <- intercept + slope*morph$`Tarsus (mm)`
+  
+  #likelihood
+  summ(dnorm(morph$`Culmen (mm)`, fit, sd, log = TRUE))
+}
+  #grid sample
+grid_samp <- crossing(intercept = seq(-1, 1, 0.1),
+                      slope = seq(0, 0.5, 0.01),
+                      sd = seq(1,2,0.1)) %>%
+  rowwise()%>%
+  mutate(logLik = like_fun(slope, intercept, sd)) %>%
+  ungroup()
+
+#estimates
+
+
+#bayes
+
+```
+
+##5.2 Three interpretations (10 points)
+###OK, now that we have fits, take a look! Do the coefficients and their associated measures of error in their estimation match? How would we interpret the results from these different analyses differently? Or would we? Note, confint works on lm objects as well.
+
+```{R}
+
+
+```
+
+##5.3 Everyday I'm Profilin' (10 points)
+###For your likelihood fit, are your profiles well behaved? For just the slope, use grid sampling to create a profile. You'll need to write functions for this, and use the results from your glm() fit to provide the reasonable bounds of what you should be profiling over (3SE should do). Is it well behaved? Plot the profile and give the 80% and 95% CI. Verify your results with profileModel.
+
+```{R}
+
+```
+
+##5.4 The Power of the Prior (10 points)
+###This data set is pretty big. After excluding NAs in the variables we're interested in, it's over 766 lines of data! Now, a lot of data can overhwelm a strong prior. But only to a point. Show first that there is enough data here that a prior for the slope with an estimate of 0.4 and a sd of 0.01 is overwhelmed by the data by demonstrating that it produces similar results to our already fit flat prior. Second, see if a very small sample size (n = 10) would at least include 0.4 in it's 95% Credible Interval. Last, demonstrate at what sample size that 95% CL first begins to include 0.4 when we have a strong prior. How much data do we really need to overcome our prior belief? Note, it takes a long time to fit these models, so, try a strategy of spacing out the 3-4 sample sizes, and then zoom in on an interesting region.
+
+```{R}
+
+```
+
+##6. Extra Credit
+###Make an election forecast as discussed at https://biol607.github.io/extra.html - but this isn't just a winner prediction. 1 point for the correct winner. 5 points for correctly predicting the popular vote and being within 10% (3% just for trying!). 5 points for predicting the electoral college and geting no more than 5 states wrong (3 points just for trying). 5 points for predicting the senate races getting no more than 5 states wrong (3 points just for trying). 1 extra point for each vote percentage within your 80% Confidence/Credible Interval. Ditto for the house races.
+
+```{R}
+
+```
+
+###If you want to do something else crazy with the election data, contact me, and we'll discuss how many extra points it would be worth (typically 3-5).
+
+###Theoretically, you could almost pass this exam just by good forecasts.
