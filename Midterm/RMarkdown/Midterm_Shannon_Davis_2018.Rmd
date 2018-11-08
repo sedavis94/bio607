@@ -37,13 +37,41 @@ library(purrr)
 ##1) Sampling your system (10 points)
 ###Each of you has a study system your work in and a question of interest. Give an example of one variable that you would sample in order to get a sense of its variation in nature. Describe, in detail, how you would sample for the population of that variable in order to understand its distribution. Questions to consider include, but are not limited to: Just what is your sample versus your population? What would your sampling design be? Why would you design it that particular way? What are potential confounding influences of both sampling technique and sample design that you need to be careful to avoid? What statistical distribution might the variable take, and why?
 
-```{R}
+What would you sample to understand systems variation in nature? 
+I study carbon fluxes during rain events in small, urban, terminal rivers. TO understand the variability of flow in a specific river, hourly flow rates could be used. 
 
 
-```
+How would you sample for the population of that variable to understand distibution?
+Sampling one river hourly would represnet the varibility of the river flow. 
+
+Sample vs population
+In this case the sample are discreate samples every hour. The population is the flow of the river at any given time. The population is infinate/continous, while the sample is finite/discreate.
+
+sampling design? why?
+This hourly sampling design allows for a reasonable use of a sensor while still getting good coverage of the whole time series. If we sampled any more, the sensor battery woud not last long enough or hold enough data. If we sampled any less we would miss out on some extreemly high flow rates, because the highest of high flow rates normally only last for 15 minutes or so. An hour between sampels allows for good coverage while still staying within the use of the sensor. 
+
+confounding influence of both sampling technique or design that need to be avoided.
+When the river has a low flow it tends to stay low for a long time. When the river is high, it is much more flashy and only stays at the highest flow rate for 15 minutes. This means that we could be missing the highest flow rates. 
+
+What statistical distribution might be the variable take?
+This distribution should look like a normal distibution with a right skew (weighted to the low flow). 
+
 
 ##2) Let's get philosophical. (10 points)
 ###Are you a frequentist, likelihoodist, or Bayesian? Why? Include in your answer why you prefer the inferential tools (e.g. confidence intervals, test statistics, posterior probabilities, etc.) of your chosen worldview and why you do not like the ones of the other one. This includes defining just what those different tools mean! extra credit for citing and discussing outside sources - one point per source/point
+
+To start out I am going to eliminate likelihoods from the possibilities. Likelihoodism does not do much to provide guidance for what you should believe about a system. The result of a likelihood analysis is not as useful as Bayes of frequentist for making decisions and that is why it is out of the competition for my preferred statistical method. 
+
+So now we have Bayesian vs Frequentist. Both give guidance on what conclusions we can make. Bayes gives you the probability of your hypothesis given the data and frequency gives you the probability of your data given the hypothesis. The former is a more "English friendly" way of explaining statistics, but before I can make my decision, lets dig a little deeper. 
+
+Bayesian use likelihood combined with prior knowledge to make a judgment on what the data is saying. Frequentist use likelihood to create a repeatable test to see what the probability of rejecting the null hypothesis is. The best way to explain this is the following joke. 
+
+"A Bayesian is one who, vaguely expecting a horse, and catching a glimpse of a donkey, strongly believes he has seen a mule." (Bayesian Fun)
+
+This is basically saying that your glimpse of a donkey completely changes the way you see the problem. If you were trying to determine the probability of seeing a horse, and you were a frequentist the fact you saw a donkey would not change your probability at all. 
+
+At this point I am leaning toward frequentist, due to the fact that you do not need prior knowledge. The final point that pushes frequentist to the font is that confidence intervals, where you can say how confident you are that a range of values holds the true mean of the population. For me, this is a very useful tool, and pushes frequentist to victory! 
+
 
 ##3) Power (20 points)
 ###We have a lot of aspects of the sample of data that we collect which can alter the power of our linear regressions.
@@ -57,68 +85,6 @@ library(purrr)
 
 ###slope = 0.00237, intercept=115.767, sigma = 5.6805, range of seal ages = 958 to 8353, or, if you prefer, seal ages ??? N(3730.246, 1293.485). Your call what distribution to use for seal age simulation.
 
-```
-
-seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
-head(seals)
-hist(seals$age.days)
-
-#need a data frame with all parameters
-seal_data_fun <- function(slope, intercept, sigma, min = 958, max = 8353){
-  data.frame(slope)%>%
-    crossing(intercept, sigma)%>%
-    #need some sampling data with x's
-    mutate(age.days = runif(n(), min, max))%>%
-    #data generating process from x( y= a+ bx)
-    mutate(length.cm = rnorm(n(), intercept + slope * age.days, sigma))
-}
-
-
-
-seal_start <- seal_data_fun(slope = 0.00237, intercept = 115.767, sigma = 5.6805)
-
-seal_start %>%
-   mutate(mod = purrr:::map(seal_start$slope, ~lm(length.cm ~ age.days))) %>%
-   mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
-
-seal_start
-
-####Slope 
-slope_num <- rep(seq(0.001, 0.002, 0.0001),10)
-slope_num
-
-seal_slope <- seal_data_fun(slope = slope_num, intercept = 115.767, sigma = 5.6805)
-seal_slope %>%
-   mutate(mod = purrr:::map(seal_slope$slope, ~lm(length.cm ~ age.days))) %>%
-   mutate(coefs = purrr::map(mod, ~broom::tidy(.)))
-
-seal_slope
-
-anova(seal_slope, length.cm ~ age.days)
-
-ggplot(data = seal_slope,
-       mapping = aes(x = age.days,
-                     y = length.cm))+
-  geom_point()
-
-
-lm_seal_slope <- lm(length.cm ~ age.days, data = seal_slope)
-
-slope_test <-anova(lm_seal_slope)
-
-slope_test
-
-
-
-
-
-
-
-
-
-
-
-```
 ```{R}
 seals <- read_csv("../Data/17e8ShrinkingSeals Trites 1996.csv")
 head(seals)
@@ -230,79 +196,34 @@ int_plot <- ggplot(pow_data_int,
   geom_line()
 
 int_plot
+
+###sample size
+
+pow_data_size <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
+                  size_diff = seq(5,40, 5)) %>%
+                  
+  rowwise() %>%
+  mutate(power = pow_from_f_test(alpha = alpha_diff, 
+                           samp_size =  size_diff)) %>%
+  ungroup()
+
+
+pow_data_size
+
+
+###plot
+size_plot <- ggplot(pow_data_size, 
+                     mapping = aes(x = size_diff, y = power, color = factor(alpha_diff)))+
+  geom_point()+
+  geom_line()
+
+size_plot
 ```
 
 
 
 
-```{R}
 
-#Hannah
-sim_parameters <- data.frame(intercept = c(100, 115,120,125),
-                      slope= 0.00237) %>%
-  crossing(residual_sd = 3:8) %>%
-  crossing(sample_size = 5:15) %>%    #looking at sample size, intercept, residual
-  #set up sampling 
-  group_by(intercept, slope, residual_sd, sample_size) %>%
-  expand(reps= 1:sample_size) %>%
-  ungroup() %>%
-  #replicate for simulations 
-  crossing(sim= 1:100) %>% 
-  mutate(age.days= runif(n(), 958, 8353)) %>% 
-           mutate(length.cm = rnorm(n(), intercept + slope* age.days,
-                                    residual_sd)) %>%
-  ungroup()
-  ##fit models##   
-  
- lim_fit <- function(sim_parameters){ 
-  fit <- sim_parameters %>% 
-    group_by(sim, intercept, slope, residual_sd, sample_size) %>%
-    nest() %>%
-    mutate(mod = purrr:::map(data, ~lm(length.cm ~ age.days, data=.))) %>%
-    mutate(coefs = purrr::map(mod, ~broom::tidy(.))) %>%
-    unnest(coefs) %>%
-    ungroup() %>%
-    filter(term == "age.days")
-  }
-sim_fit <- lim_fit(sim_parameters= sim_parameters)  
-#power for intercept change 
- pow_intercept <- sim_fit %>% 
-   crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
-   group_by(intercept, alpha)%>% 
-   mutate(power=1-sum(p.value>alpha)/n()) %>%
-   ungroup()
-###Rinse and repeat for residual sd, and sample size
-pow_resid <- sim_fit %>% 
-  crossing(alpha=c(0.001, 0.01, 0.05, 0.1)) %>%
-  group_by(residual_sd, alpha) %>%
-  mutate(power= 1- sum(p.value>alpha)/n()) %>%
-  ungroup()
-pow_samp_siz <- sim_fit %>% 
-  crossing(alpha= c(0.001, 0.01, 0.05, 0.1))%>%
-  group_by(sample_size, alpha) %>% 
-  mutate(power=  1- sum(p.value>alpha)/n()) %>%
-  ungroup()
-#plot 
-inter_plot <- ggplot(data = pow_intercept, 
-       mapping = aes(x = intercept, y = power, color = factor(alpha))) +
-  geom_point() +
-  geom_line() +
-  theme_bw()
-resid_plot<- ggplot(data = pow_resid, 
-       mapping = aes(x = residual_sd, y = power, color = factor(alpha))) +
-  geom_point() +
-  geom_line() +
-  theme_bw()
-samp_siz_plot <- ggplot(data = pow_samp_siz, 
-       mapping = aes(x = sample_size, y = power, color = factor(alpha))) +
-  geom_point() +
-  geom_line() +
-  theme_bw()
-#visualize#
-samp_siz_plot
-resid_plot
-inter_plot
-```
 Change in intercept did not have a significant effect on power, increasing residual variance had a negative effect on power and larger sample sizes increased power. 
 
 
@@ -323,17 +244,17 @@ Change in intercept did not have a significant effect on power, increasing resid
 ###I've referenced the following figure a few times. I'd like you to demonstrate your understanding of Bayes Theorem by hand showing what the probability of the sun exploding is given the data. Assume that your prior probability that the sun explodes is p(Sun Explodes) = 0.0001. The rest of the information 
 ```{R}
 
-P_SE <- 35/36 #probability that the dice is says it is exploding  
+P_SE <- 35/36 #probability that the dice says the sun is exploding  given that it is exploding 
 P_E <- 0.0001 #probability the sun explodes 
 
-#P(T) = P(T/E)*P(E)+P(T/N)*P(N)
+#P(S) = P(S/E)*P(E)+P(S/N)*P(N)
 
 P_SN <- 1/36 #probability that the dice is saying the sun exploded but it did not
 P_N <- 1-P_E  #probaility of the sun not exploding 
 
 P_S <- P_SE*P_E+P_SN*P_N
 
-P_S #marginal 
+P_S #marginal (probability the dice says the sun exploded, regardless on if it explodes or not)
 
 
 P_ES <- (P_SE * P_E)/P_S
@@ -348,65 +269,164 @@ P_ES  #probability the sun explodes given the dice tells you it is exploding
 ##5.1 Three fits (10 points)
 ###To begin with, I'd like you to fit the relationship that describes how Tarsus (leg) length predicts upper beak (Culmen) length. Fit this relationship using least squares, likelihood, and Bayesian techniques. For each fit, demonstrate that the necessary assumptions have been met. Note, functions used to fit with likelihood and Bayes may or may not behave well when fed NAs. So look out for those errors.
 
+
 ```{R}
-morph <- read_csv("../Data/Morphology data.csv")
+#load data
+morph <- read.csv("../Data/Morphology data.csv") 
 
 #least squares
-morph_ls_mod <- lm(mprph$`Culmen (mm)`~ morph$`Tarsus (mm)`)
+morph_lm_mod <- lm(morph$Culmen..mm.~ morph$Tarsus..mm.)
+#check assumptions 
+plot(morph_lm_mod, which=1)  #check 
+plot(morph_lm_mod, which=2) #check
 
-  #take a look
-plot(morph_ls_mod, which = 1) #looks good!
-plot(morph_ls_mod, which = 2) #looks okay.. ends are weird 
+#T-test
+anova(morph_lm_mod) 
+#summary of model 
+summary(morph_lm_mod) 
 
-summary(morph_ls_mod)
+morph_lm_plot <- ggplot(data = morph,
+       mapping = aes(x = Tarsus..mm., y = Culmen..mm.))+
+  geom_point()+
+  stat_smooth(method=lm)
 
-  #log transform
-morph_ls_mod_log <- lm(log(mprph$`Culmen (mm)`)~ log(morph$`Tarsus (mm)`))
+morph_lm_plot
 
-  #take a look
-plot(morph_ls_mod_log, which = 1) #looks good!
-plot(morph_ls_mod_log, which = 2) #looks okay.. low end weird 
-
-summary(morph_ls_mod_log)
-                       
+```
+This is a high F value. The F value is the ratio of two mean square values. If the null hypothesis is true, it is expected that F is close to 1. A large F value (like we have) means that the variation among group means is more than you'd expect to see by chance. Therefore we can reject the null hypothesis that leg length doesn't predict beak length.
+```{R}
 #likelihood
+morph_glm_mod <- glm(Culmen..mm.~Tarsus..mm., 
+                 data=morph,
+                 family= gaussian(link="identity"))
 
-like_fun <- function(slope, intercept, sd){
-  #data
-  fit <- intercept + slope*morph$`Tarsus (mm)`
+#check assumptions 
+
+plot(morph_glm_mod, which=1) #check
+plot(morph_glm_mod, which=2) #check
+
+morph_glm_plot <- ggplot(data = morph,
+                         mapping = aes(x = Tarsus..mm., y = Culmen..mm.))+
+  geom_point()+
+  stat_smooth(method = "glm", method.args = list(family = gaussian(link=("identity"))))
+
+morph_glm_plot
   
-  #likelihood
-  summ(dnorm(morph$`Culmen (mm)`, fit, sd, log = TRUE))
-}
-  #grid sample
-grid_samp <- crossing(intercept = seq(-1, 1, 0.1),
-                      slope = seq(0, 0.5, 0.01),
-                      sd = seq(1,2,0.1)) %>%
-  rowwise()%>%
-  mutate(logLik = like_fun(slope, intercept, sd)) %>%
-  ungroup()
 
-#estimates
-
-
-#bayes
 
 ```
 
+```{R}
+# Bayes Setup
+options(mc.cores = parallel::detectCores())
+set.seed(607)
+
+# Bayes brm
+morph_brm_mod<- brm(Culmen..mm.~Tarsus..mm., 
+                 data=morph,
+                 family= gaussian(link="identity"))
+
+plot(morph_brm_mod, which=1) #check
+plot(morph_brm_mod, which=2) #check
+# Plot 
+bayes_chain <- as.data.frame(morph_brm_mod)
+
+morph_brm_plot <- ggplot(data = morph, 
+                         mapping = aes (x = Tarsus..mm., y = Culmen..mm.)) +
+  geom_abline(intercept=bayes_chain[,1], slope = bayes_chain[,2], alpha=0.5, color="green") +
+  geom_abline(intercept=fixef(morph_brm_mod)[1], slope = fixef(morph_brm_mod)[2], color="red") +
+  geom_point()
+
+morph_brm_plot
+```
 ##5.2 Three interpretations (10 points)
 ###OK, now that we have fits, take a look! Do the coefficients and their associated measures of error in their estimation match? How would we interpret the results from these different analyses differently? Or would we? Note, confint works on lm objects as well.
 
 ```{R}
+#least square
+summary(morph_lm_mod)
 
+#likelihood
+summary(morph_glm_mod)
+
+#Bayes
+summary(morph_brm_mod)
 
 ```
+
+
 
 ##5.3 Everyday I'm Profilin' (10 points)
 ###For your likelihood fit, are your profiles well behaved? For just the slope, use grid sampling to create a profile. You'll need to write functions for this, and use the results from your glm() fit to provide the reasonable bounds of what you should be profiling over (3SE should do). Is it well behaved? Plot the profile and give the 80% and 95% CI. Verify your results with profileModel.
 
 ```{R}
+# grid sample  Function
+morph_fix <- morph %>%
+  na.omit()
 
+head(morph_fix)
+
+likeFun <- function(slope, intercept, resid_sd){
+  fit <- intercept + slope * morph_fix$Tarsus..mm.
+  
+  #Likelihood
+  sum(dnorm(morph_fix$Culmen..mm., fit, resid_sd, log=TRUE))
+  
+}
+
+# Combinations 
+grid_morph <- crossing(intercept = seq(-.75, 0.5, 0.5),
+                      slope = seq(0, 0.5,.001),
+                      resid_sd = seq(0.5, 1.5, 0.01)) %>%
+  rowwise() %>%
+  mutate(logLike = likeFun(slope, intercept, resid_sd)) %>%
+  ungroup()
+
+head(grid_morph)
+
+#log max 
+slope_prof <-grid_morph %>% 
+  group_by(slope) %>%
+ filter(logLike == max(logLike))
+
+#plot
+ggplot(data = slope_prof,
+       mapping = aes(x = slope, y = logLike))+
+  geom_line()
+
+
+#95%
+morph_95 <- grid_morph %>%
+  filter(logLike > max(logLike)- (qchisq(0.95,1)/2)) %>%
+  arrange(slope)%>%
+  filter(row_number()==1|row_number()==n())%>%
+  select(slope)%>%
+  as.data.frame
+
+morph_95
+
+#80%
+
+morph_80 <- grid_morph %>%
+  filter(logLike > max(logLike)- (qchisq(0.80,1)/2)) %>%
+  arrange(slope)%>%
+  filter(row_number()==1|row_number()==n())%>%
+  select(slope)%>%
+  as.data.frame
+
+morph_80
+
+ggplot(data = slope_prof,
+       mapping = aes(x = slope, y = logLike))+
+  geom_line()+
+  geom_vline(data = morph_80,
+             mapping = aes(xintercept = slope, color = "orange"))+
+  geom_vline(data = morph_95,
+             mapping = aes(xintercept = slope, color = "blue"))
+       
 ```
+
+
 
 ##5.4 The Power of the Prior (10 points)
 ###This data set is pretty big. After excluding NAs in the variables we're interested in, it's over 766 lines of data! Now, a lot of data can overhwelm a strong prior. But only to a point. Show first that there is enough data here that a prior for the slope with an estimate of 0.4 and a sd of 0.01 is overwhelmed by the data by demonstrating that it produces similar results to our already fit flat prior. Second, see if a very small sample size (n = 10) would at least include 0.4 in it's 95% Credible Interval. Last, demonstrate at what sample size that 95% CL first begins to include 0.4 when we have a strong prior. How much data do we really need to overcome our prior belief? Note, it takes a long time to fit these models, so, try a strategy of spacing out the 3-4 sample sizes, and then zoom in on an interesting region.
