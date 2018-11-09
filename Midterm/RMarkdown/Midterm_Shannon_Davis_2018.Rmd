@@ -18,6 +18,8 @@ library(bbmle)
 library(brms)
 library(bayesplot)
 library(purrr)
+library(tidybayes)
+library(rstanarm)
 ```
 
 #Midterm Exam
@@ -127,6 +129,10 @@ pow_from_f_test <- function(nsims = 1000, alpha =0.05, samp_size = 10, slope = 0
   return(power)
 }
 
+```
+
+```{R}
+
 #slope
 pow_data_slope <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
                    size_diff = nrow(seals),
@@ -152,6 +158,9 @@ slope_plot <- ggplot(pow_data_slope,
 slope_plot
 
 
+```
+
+```{R}
 ###sigma
 
 pow_data_sigma <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
@@ -174,7 +183,9 @@ sigma_plot <- ggplot(pow_data_sigma,
 
 sigma_plot
 
+```
 
+```{R}
 ###intercept
 
 pow_data_int <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
@@ -197,6 +208,9 @@ int_plot <- ggplot(pow_data_int,
 
 int_plot
 
+```
+
+```{R}
 ###sample size
 
 pow_data_size <- crossing(alpha_diff = c(0.001, 0.01, 0.05, 0.1),
@@ -228,18 +242,6 @@ Change in intercept did not have a significant effect on power, increasing resid
 
 
 
-###Extra credit 1 - test whether the distribution of ages alters power: 3 points
-
-```{R}
-
-```
-
-###Extra Credit 2 Choose just one of the above elements to vary. Using likelihood to fit models, repeat your power analysis for a chi-square likelihood ratio test. You can use glm(), bbmle or some other means of fitting and obtaining a LRT at your discretion. 5 points.
-
-```{R}
-
-```
-
 ##4) Bayes Theorem
 ###I've referenced the following figure a few times. I'd like you to demonstrate your understanding of Bayes Theorem by hand showing what the probability of the sun exploding is given the data. Assume that your prior probability that the sun explodes is p(Sun Explodes) = 0.0001. The rest of the information 
 ```{R}
@@ -262,6 +264,7 @@ P_ES <- (P_SE * P_E)/P_S
 P_ES  #probability the sun explodes given the dice tells you it is exploding 
 
 ```
+The probability that the sun exploded given our data is 0.0349%. 
 
 ##5) Quailing at the Prospect of Linear Models
 ###I'd like us to walk through the three different 'engines' that we have learned about to fit linear models. To motivate this, we'll look at Burness et al.'s 2012 study "Post-hatch heat warms adult beaks: irreversible physiological plasticity in Japanese quail http://rspb.royalsocietypublishing.org/content/280/1767/20131436.short the data for which they have made available at Data Dryad at http://datadryad.org/resource/doi:10.5061/dryad.gs661. We'll be looking at the morphology data.
@@ -272,7 +275,10 @@ P_ES  #probability the sun explodes given the dice tells you it is exploding
 
 ```{R}
 #load data
-morph <- read.csv("../Data/Morphology data.csv") 
+morph_NA <- read.csv("../Data/Morphology data.csv") 
+morph <- morph_NA %>%
+  na.omit()
+head(morph)
 
 #least squares
 morph_lm_mod <- lm(morph$Culmen..mm.~ morph$Tarsus..mm.)
@@ -305,6 +311,13 @@ morph_glm_mod <- glm(Culmen..mm.~Tarsus..mm.,
 plot(morph_glm_mod, which=1) #check
 plot(morph_glm_mod, which=2) #check
 
+morph_pred <- predict(morph_glm_mod)
+morph_res <- residuals(morph_glm_mod)
+
+qqnorm(morph_res)
+qqline(morph_res) #mostly okay... ends look odd
+
+
 morph_glm_plot <- ggplot(data = morph,
                          mapping = aes(x = Tarsus..mm., y = Culmen..mm.))+
   geom_point()+
@@ -328,6 +341,26 @@ morph_brm_mod<- brm(Culmen..mm.~Tarsus..mm.,
 
 plot(morph_brm_mod, which=1) #check
 plot(morph_brm_mod, which=2) #check
+
+#test assumptions 
+morph_pos <- posterior_samples(morph_brm_mod, 
+                                    add_chain = T)
+rhat(morph_brm_mod)#~ 1 is good
+
+mcmc_acf(morph_pos) #good convergence  
+morph_fit <- fitted(morph_brm_mod) %>% as.data.frame() 
+
+morph_res <- residuals(morph_brm_mod) %>% as.data.frame()
+
+mcmc_trace(morph_pos)
+
+qqnorm(morph_res$Estimate) #check 
+
+pp_check(morph_brm_mod, type= "scatter") #looks good 
+pp_check(morph_brm_mod, type = "dens")
+pp_check(morph_brm_mod, type = "stat", stat = "mean")
+pp_check(morph_brm_mod, type = "stat_2d")
+
 # Plot 
 bayes_chain <- as.data.frame(morph_brm_mod)
 
@@ -354,76 +387,71 @@ summary(morph_brm_mod)
 
 ```
 
+These three models say that there is a relationship between tarsus and culmen. 
+In the first one (least squares) the test uses a frequentist model that can confidently reject a the hypothesis that there is not a relationship between the two variables. 
+The second one (likelihood) is looking at the probability that we could get the data we get. From this we can not say "we reject out null hypothesis".
+The third one (bayes) it is saying how likly our hypotheis is given the data. It also uses prior information to get to this conclusion. 
 
 
 ##5.3 Everyday I'm Profilin' (10 points)
 ###For your likelihood fit, are your profiles well behaved? For just the slope, use grid sampling to create a profile. You'll need to write functions for this, and use the results from your glm() fit to provide the reasonable bounds of what you should be profiling over (3SE should do). Is it well behaved? Plot the profile and give the 80% and 95% CI. Verify your results with profileModel.
 
+
 ```{R}
-# grid sample  Function
-morph_fix <- morph %>%
-  na.omit()
-
-head(morph_fix)
-
-likeFun <- function(slope, intercept, resid_sd){
-  fit <- intercept + slope * morph_fix$Tarsus..mm.
+#grid sampling 
+lik_fun <- function(slope, intercept, resid_sd){
+  #data generating process
+ fit <- intercept + slope * morph$Tarsus..mm.
   
-  #Likelihood
-  sum(dnorm(morph_fix$Culmen..mm., fit, resid_sd, log=TRUE))
-  
+  #likelihood
+  sum(dnorm(morph$Culmen..mm., fit, resid_sd, log=TRUE))
 }
-
-# Combinations 
-grid_morph <- crossing(intercept = seq(-.75, 0.5, 0.5),
-                      slope = seq(0, 0.5,.001),
-                      resid_sd = seq(0.5, 1.5, 0.01)) %>%
+morph_grid <- crossing(intercept = -0.098707,
+                      slope = seq(0.2,0.5,.001),
+                       resid_sd = seq(0, 2, .01)) %>%
   rowwise() %>%
-  mutate(logLike = likeFun(slope, intercept, resid_sd)) %>%
+  mutate(logLik = lik_fun(slope, intercept, resid_sd)) %>%
   ungroup()
 
-head(grid_morph)
+head(morph_grid) #it worked!!!
 
 #log max 
-slope_prof <-grid_morph %>% 
+slope_prof <-morph_grid %>% 
   group_by(slope) %>%
- filter(logLike == max(logLike))
+  filter(logLik == max(logLik)) 
+
+head(slope_prof)
 
 #plot
-ggplot(data = slope_prof,
-       mapping = aes(x = slope, y = logLike))+
-  geom_line()
+plot_good <- ggplot(data = slope_prof,
+       mapping = aes(x = slope, y = logLik))+
+  geom_line() 
 
-
-#95%
-morph_95 <- grid_morph %>%
-  filter(logLike > max(logLike)- (qchisq(0.95,1)/2)) %>%
-  arrange(slope)%>%
-  filter(row_number()==1|row_number()==n())%>%
-  select(slope)%>%
-  as.data.frame
+#95 CI
+morph_95 <- morph_grid %>%
+filter(logLik > max(logLik) - qchisq(0.95,1)/2) %>% 
+  arrange(slope) %>%
+  filter(row_number()==1 | row_number()==n())%>%
+  as.data.frame()
 
 morph_95
-
-#80%
-
-morph_80 <- grid_morph %>%
-  filter(logLike > max(logLike)- (qchisq(0.80,1)/2)) %>%
-  arrange(slope)%>%
-  filter(row_number()==1|row_number()==n())%>%
-  select(slope)%>%
-  as.data.frame
+#80 CI
+morph_80 <- morph_grid %>% filter(logLik > max(logLik) - qchisq(0.95,1)/2) %>% 
+  arrange(slope) %>%
+  filter(row_number()==1 | row_number()==n())%>% 
+  as.data.frame()
 
 morph_80
 
+
+
 ggplot(data = slope_prof,
-       mapping = aes(x = slope, y = logLike))+
+       mapping = aes(x = slope, y = logLik))+
   geom_line()+
   geom_vline(data = morph_80,
              mapping = aes(xintercept = slope, color = "orange"))+
   geom_vline(data = morph_95,
              mapping = aes(xintercept = slope, color = "blue"))
-       
 ```
 
 
@@ -432,15 +460,140 @@ ggplot(data = slope_prof,
 ###This data set is pretty big. After excluding NAs in the variables we're interested in, it's over 766 lines of data! Now, a lot of data can overhwelm a strong prior. But only to a point. Show first that there is enough data here that a prior for the slope with an estimate of 0.4 and a sd of 0.01 is overwhelmed by the data by demonstrating that it produces similar results to our already fit flat prior. Second, see if a very small sample size (n = 10) would at least include 0.4 in it's 95% Credible Interval. Last, demonstrate at what sample size that 95% CL first begins to include 0.4 when we have a strong prior. How much data do we really need to overcome our prior belief? Note, it takes a long time to fit these models, so, try a strategy of spacing out the 3-4 sample sizes, and then zoom in on an interesting region.
 
 ```{R}
+# prior
+prior <- stan_glm(Culmen..mm. ~ Tarsus..mm.,
+                                data = morph,
+                                family=gaussian(),
+                                prior = normal(0.4,0.01))
+
+#head(prior) -- too long for markdown print 
+#test assumptions 
+prm_post <- posterior_samples(prior, add_chain= T)
+
+mcmc_acf(prm_post)
+rhat(prior)  #close to 1
+pp_check(prior) #converge 
+
+#see if small sample size will work 
+small_data <- data.frame(Tarsus=morph$Tarsus..mm.[1:10],
+                      Culmen= morph$Culmen..mm. [1:10])
+small_morph_glm <- stan_glm(Culmen~ Tarsus,
+                      data = small_data,
+                          family=gaussian(),
+                          prior = normal(0.4,0.01))
+summary(small_morph_glm, digits= 4)
+posterior_interval(small_morph_glm)
+
+#the prior greatly affects the data (due to the small sample size)
+
+#95CI including 0.4
+data_1 <- data.frame(Tarsus=morph$Tarsus..mm.[1:50],
+                      Culmen= morph$Culmen..mm. [1:50])
+
+mod_1 <- stan_glm(Culmen~ Tarsus,
+                      data = data_1,
+                          family=gaussian(),
+                          prior = normal(0.4,0.01))
+posterior_interval(mod_1) 
+
+#not yet
+
+data_2 <- data.frame(Tarsus=morph$Tarsus..mm.[1:200],
+                      Culmen= morph$Culmen..mm. [1:200])
+
+mod_2 <- stan_glm(Culmen~ Tarsus,
+                      data = data_2,
+                          family=gaussian(),
+                          prior = normal(0.4,0.01))
+posterior_interval(mod_2) 
+
+#not yet
+data_3 <- data.frame(Tarsus=morph$Tarsus..mm.[1:400],
+                      Culmen= morph$Culmen..mm. [1:400])
+
+mod_3 <- stan_glm(Culmen~ Tarsus,
+                      data = data_3,
+                          family=gaussian(),
+                          prior = normal(0.4,0.01))
+posterior_interval(mod_3) 
+
+#first time not including 4 (prior is over riden)
+
+data_4 <- data.frame(Tarsus=morph$Tarsus..mm.[1:300],
+                      Culmen= morph$Culmen..mm. [1:300])
+
+mod_4 <- stan_glm(Culmen~ Tarsus,
+                      data = data_4,
+                          family=gaussian(),
+                          prior = normal(0.4,0.01))
+posterior_interval(mod_4) 
+#this one is pretty close to 0.4 but still doesn't include it.
 
 ```
+The prior is unimportant after about 300 samples. 
 
 ##6. Extra Credit
 ###Make an election forecast as discussed at https://biol607.github.io/extra.html - but this isn't just a winner prediction. 1 point for the correct winner. 5 points for correctly predicting the popular vote and being within 10% (3% just for trying!). 5 points for predicting the electoral college and geting no more than 5 states wrong (3 points just for trying). 5 points for predicting the senate races getting no more than 5 states wrong (3 points just for trying). 1 extra point for each vote percentage within your 80% Confidence/Credible Interval. Ditto for the house races.
 
 ```{R}
+GB <- read_csv("../Data/GB.csv") %>%
+  as.data.frame()
+
+GB
+
+#bootstrap 
+test_samp_1 <- (data.frame(party = sample(GB$party, size = 100, replace = TRUE)) %>%
+  group_by(party) %>%
+  count())
+  
+
+
+test_samp_1 
+
+summary(test_samp_1)
+
+
 
 ```
+The idea is to take 100 samples with replacment and do this many manny times(this is something I couldn't figure out how to code). This can then be made a proportion of times that DEMS get x%. this will lead to a normal distribution around the mean (50%). 
+
+```{R}
+Baker_wbur <- 68 *(1/((68+25)/100)) #this is scaling to undecided voters (basically saying undecided voterw will vote in the same proportion that the other voters do)
+Gonz_wbur <- 25 *(1/((68+25)/100)) 
+Gonz_wbur
+Baker_wbur
+gov_samp_size_wbur <- 502
+
+Baker_WNE <- 65 *(1/((65+27)/100))
+Gonz_WNE <- 27 *(1/((65+27)/100))
+Baker_WNE
+Gonz_WNE
+gov_samp_size_WNE <- 402
+
+Baker_UMASS <- 66 *(1/((66+27)/100))
+Gonz_UMASS <- 27*(1/((66+27)/100))
+Baker_UMASS
+Gonz_UMASS
+gov_samp_size_UMASS <- 791
+
+w_average_baker <- (Baker_wbur*gov_samp_size_wbur +Baker_WNE*gov_samp_size_WNE+Baker_UMASS*gov_samp_size_UMASS)/(gov_samp_size_UMASS+gov_samp_size_wbur+gov_samp_size_WNE)
+
+w_average_baker
+#baker is projected to get 71.53% of votes 
+
+w_average_gonz <- (Gonz_wbur*gov_samp_size_wbur +Gonz_WNE*gov_samp_size_WNE+Gonz_UMASS*gov_samp_size_UMASS)/(gov_samp_size_UMASS+gov_samp_size_wbur+gov_samp_size_WNE)
+
+w_average_gonz
+
+
+#baker is projected to get 28.47% of votes 
+
+```
+I predict that Baker will get 71.53% of votes. Actually he got 66.9% of votes. My prediction was ~4.5% off. Gonzalez got 33.1 % of votes, while I predicted 28.47%. 
+
+One reason my model is off is because one of my assumptions is that everyone voting, voted for one of the two, not a third party. 
+
+The reason my numbers are low is because 
 
 ###If you want to do something else crazy with the election data, contact me, and we'll discuss how many extra points it would be worth (typically 3-5).
 
