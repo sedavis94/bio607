@@ -20,7 +20,7 @@ Having a river gaged is a limiting factor to my research. I need high resolution
 From the insitu fluorometer I have [CDOM]. I also have discharge from the adjacent USGS gage. I can use the discharge and [CDOM] to get amount of carbon, which is a much more useful measurement than concentration for comparing different events. I am also using the Boston water and sewer rainfall records from Hyde park as my precipitation data. This is the closest high-resolution rainfall data to Quincy. From this data a model can be made determining if rainfall parameters like, intensity and rain amount affect the amount of CDOM.  
 
 #Question: 
-(1)How do flow rates and percent permeability affect the flashiness of rivers? 
+(1) How do flow rates and percent permeability affect the flashiness of rivers? 
 My hypothesis is that permeability and average discharge are the main predictors of flashiness 
 Ho = permeability has no effect on flashiness of rivers
 Ha = permeability has a statistically significant effect on the flashiness of rivers 
@@ -52,7 +52,7 @@ library(visreg)
 The next step is to read in the data we will be using. This data came from USGS gages in Massachusetts over 25 years and permiabilty measurments from stream stats (a USGS application). 
 
 ```{R}
-river <- read_csv("../Data/Massriver.csv") %>%
+river <- read_csv("../../Data/Massriver.csv") %>%
   select(flow, flashiness, perm)
 
 head(river)
@@ -173,7 +173,7 @@ coef(river_mlr_int)
 
 #
 ```
-The VIF got even better with centering, but the correlation didn't improve. Since there is very litte difference between the two models I am going to continue on with the uncentered model. 
+The VIF got even better with centering, but the correlation didn't improve. Since there is very litte difference between the two models I am going to continue on with the uncentered model. From the Anova we can see that our F values are 2.7 and 10.7. These are kind of low. The p value for flow is above our threshold ofan alpha of 0.05, but I chose to leave this paramter in for the rest of the analysis to keep it a multiple linear regression and becasue when more rivers are included the p value may go down. 
 
 #Discussion:
 The first thing we have to do is look at the summary output. the summary shows the effect each variable has and also the fit of the model.
@@ -237,7 +237,7 @@ From the above model we can say that permiabilty is highly corrilated to flashin
 The data that was taken from an in situ flourometer in Town Brook in Quincy, MA does not report as claen data. There are three errors that can occur. First there can be rows with missing data. 
 
 ```{R}
-FDOM <- read_csv("../data/FDOM181212.csv")
+FDOM <- read_csv("../../data/FDOM181212.csv")
 
 FDOM[51701,c(1:5)]
 ```
@@ -313,7 +313,7 @@ The next thing I have to do is use my discrete sampes to determine concentration
 
 ```{R}
 
-Sample <- read_csv("../Data/Sample.csv")
+Sample <- read_csv("../../Data/Sample.csv")
 Sample
 Delta_Cell <- Sample[1,6] %>%
   as.numeric()
@@ -342,7 +342,7 @@ This changed the count into concentraion which is a unit we can deal with.
 
 The next thing we have to do is to pull data from USGS.
 ```{R}
-Discharge <- read_csv("../data/181212_gage1.csv") %>%
+Discharge <- read_csv("../../data/181212_gage1.csv") %>%
   as.data.frame()
 
 
@@ -360,7 +360,7 @@ ggplot(Discharge_15,
 Next we need to pull data from Boston water and sewer
 
 ```{R}
-Rain <- read_csv("../data/181212_rain.csv")
+Rain <- read_csv("../../data/181212_rain.csv")
 
 
 Rain_clean <- Rain %>%
@@ -382,7 +382,7 @@ ggplot(Rain_15,
 
 ```
 
-Now we need to join all the data together and since they all have a by15 column this is very straigt forward. 
+Now we need to join all the data together and since they all have a by15 column this is very straigt forward. I chose to do an inner join to avoid any incomplete data. I did an outer join as well and they both have the same length. 
 
 ```{R}
 library(caTools)
@@ -473,7 +473,7 @@ storm7 <- FDOM_Discharge_Rain %>%
   mutate(rain_tot = (cumsum(Rain)))%>%
   mutate(carbon = conc*28.3168*Discharge)%>%
   mutate(sumcarb = cumsum(carbon))%>%
-  mutate(storm_num = 6)%>%
+  mutate(storm_num = 7)%>%
   mutate(time = (length(Rain)*15)-15)
 
 
@@ -485,7 +485,7 @@ storm8 <- FDOM_Discharge_Rain %>%
   mutate(rain_tot = (cumsum(Rain)))%>%
   mutate(carbon = conc*28.3168*Discharge)%>%
   mutate(sumcarb = cumsum(carbon))%>%
-  mutate(storm_num = 6)%>%
+  mutate(storm_num = 8)%>%
   mutate(time = (length(Rain)*15)-15)
 
 
@@ -497,7 +497,7 @@ storm9 <- FDOM_Discharge_Rain %>%
   mutate(rain_tot = (cumsum(Rain)))%>%
   mutate(carbon = conc*28.3168*Discharge)%>%
   mutate(sumcarb = cumsum(carbon))%>%
-  mutate(storm_num = 6)%>%
+  mutate(storm_num = 9)%>%
   mutate(time = (length(Rain)*15)-15)
 
 storm10 <- FDOM_Discharge_Rain %>%
@@ -507,7 +507,7 @@ storm10 <- FDOM_Discharge_Rain %>%
   mutate(rain_tot = (cumsum(Rain)))%>%
   mutate(carbon = conc*28.3168*Discharge)%>%
   mutate(sumcarb = cumsum(carbon))%>%
-  mutate(storm_num = 6)%>%
+  mutate(storm_num = 10)%>%
   mutate(time = (length(Rain)*15)-15)
 
 
@@ -612,3 +612,7 @@ The above graphs show that carbon is affected positivly by rain total and time a
 
 #Conclusion(2)
 We can see from this model that carbon totals during storms are highly correlated to storm factors (total, intesity, time). 
+
+Future work include getting more storms and more rivers. I had a sample size of 10 storms with ultimatly more than 3 parameters. This means I need many more data point to have an accurate model. I also had one outlier with a high intensity. I need to sample more storms with high intensity. 
+
+All this being said, this is a great start to a more compex and complete model of my system. 
