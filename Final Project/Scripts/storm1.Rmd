@@ -1,0 +1,275 @@
+---
+title: "Final"
+author: "Shannon Davis"
+date: "December 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(tibbletime)
+library(data.table)
+library(ggplot2)
+library(emmeans)
+library(car)
+```
+
+#Background
+##I am using data from three rain storms in Quincy, MA. 
+
+#Data Cleaning
+## The data that was taken from an in situ flourometer in Town Brook in Quincy, MA does not report as claen data. There are three errors that can occur. First there can be rows with missing data. 
+
+```{R}
+FDOM <- read_csv("../data/FDOM181212.csv")
+
+FDOM[4549,c(1:6)]
+```
+
+The second problem is that there can be additional columns of data that cause the entire row to be false data.
+
+```{R}
+FDOM[4597,]
+```
+
+The third problem is a result of the sensor being physically moved by debris causing it to read zero or close to zero. This can be seen when the count is less than ~ 100.  
+
+```{R}
+FDOM[5114:5119,c(1:6)]
+```
+
+Below is the code used to clean the data. 
+
+```{R}
+FDOM_clean <- FDOM %>%
+  drop_na(Date, Time,'N/U', Count, y) %>%#drops rows with missing values
+  filter(is.na(bad1), is.na(bad2), is.na(bad3), is.na(bad4)) %>%#drops rows with extra values 
+  dplyr::select(Date, Time, Count) %>% # only uses date and count
+ dplyr::filter(Count > 100) %>% #get rid of low numbers
+  dplyr::filter(Count < 3000) #get rid of high numbers 
+
+head(FDOM_clean)
+length(FDOM_clean)
+```
+
+The next hurdle to get over is averaging samples taken at the same time. The sensor is supose to take 15 samples every 10 minutes. The issue arises when the data has been cleaned beasue the sample size is not the same for each time period (some where taken away when cleaned). There are two ways to do this (both with flaws). First, I could average by hour and use the total observations for the hour as the denomenator. This is flawed because not only will each hour have a different number of observations, but the hour will be weighted to times with more observations. Since every ~10 minutes gets at least 10 observations I chose to pull out these observations. The tricky part is that the data is not taken exactly 10 minutes apart and as stated before there are a differnet number of sapmles per time. 
+
+I chose to handle this by adding a column that gives delta time between samples. When this delta is big (~600 sec) that means a new time bucket must be created. I first created a new dataframe from the original that only has the starting time of each bucket and then used this this new dataframe to parse the original dataframe and get an average count for each time. 
+
+```{R}
+FDOM_clean_lag <-FDOM_clean %>%
+  mutate(DateTime = parse_date_time(paste(Date, Time, sep = " "), order="mdyHMS")) %>%# get date time in proper variable type 
+ as_tbl_time(FDOM181118_clean, index = DateTime) %>%
+  mutate(time_since_last = (Time - lag(Time)))%>%
+  select(DateTime, Count, time_since_last) %>%
+  as.data.frame() #getting lag time
+#filter(is.na(time_since_last)) #see if an NA's only one at the start 
+
+ FDOM_clean_lag[1,3] = "600" #fix first time bucket
+   
+head(FDOM_clean_lag)
+length(FDOM_clean_lag)
+
+
+FDOM_15 <- FDOM_clean_lag %>%
+  group_by(by15 = cut(DateTime, "15 min")) %>%
+  select(by15, Count) %>%
+  summarise(Count = mean(Count)) %>%
+  mutate(by15 = as_datetime(by15)) %>%
+  mutate(by15 = by15 + minutes(3)) %>%
+  filter(by15 >= "2018-07-01") %>%
+  filter(by15 <= "2018-12-12") %>%
+  drop_na()
+
+head(FDOM_15)
+length(FDOM_15)
+
+
+ggplot(FDOM_15,
+       aes(x = by15, y = Count))+
+  geom_point()
+
+
+```
+The next thing I have to do is use my discrete sampes to determine concentration of CDOM. The big assumption is that biofowling occurs linearly.
+
+```{R}
+
+Sample <- read_csv("../Data/Sample.csv")
+Sample
+Delta_Cell <- Sample[1,6] %>%
+  as.numeric()
+
+Delta_Cell
+
+start <- Sample[1,7]%>%
+  as.numeric()
+
+start
+
+FDOM_15_Conc <- FDOM_15 %>%
+  mutate(corrected = start)%>%
+  mutate(conc = corrected*Count) %>%
+  select(by15, conc)
+
+FDOM_15_Conc
+
+ggplot(data = FDOM_15_Conc,
+       aes(x = by15, y = conc))+
+  geom_point(color = "brown")
+
+```
+
+Now to pull data from the gauge house
+```{R}
+Discharge <- read_csv("../data/181212_gage1.csv")
+Discharge %>%
+  as.data.frame()
+
+Discharge
+
+Discharge_15 <- Discharge %>%
+  mutate(by15 = parse_date_time(paste(Date_time, sep = " "), order="mdyHM")) %>%# get date time in proper variable type 
+  select(by15, Discharge)
+
+Discharge_15
+
+ggplot(Discharge_15,
+       aes(x = by15, y = Discharge)) +
+  geom_point()
+```
+
+Pull data from Boston water and sewer
+
+```{R}
+Rain <- read_csv("../data/181212_rain.csv")
+
+Rain
+
+Rain_clean <- Rain %>%
+  mutate(DateTime = parse_date_time(paste(Datetime, sep = " "), order="mdyHM")) %>%# get date time in proper variable type 
+  select(DateTime, Rain)
+
+
+Rain_clean
+
+Rain_15 <- Rain_clean %>%
+  group_by(by15 = cut(DateTime, "15 min")) %>%
+  select(by15, Rain) %>%
+  summarise(Rain = sum(Rain)) %>%
+  mutate(by15= as_datetime(by15))
+
+Rain_15
+```
+
+Now we need to join all the data together
+
+```{R}
+library(caTools)
+FDOM_Discharge <- inner_join(FDOM_15_Conc, Discharge_15, by = "by15") 
+
+
+FDOM_Discharge
+
+FDOM_Discharge_Rain <- inner_join(FDOM_Discharge, Rain_15, by = "by15")
+
+FDOM_Discharge_Rain
+
+#add some rain parameters 
+FDOM_Discharge_Rain <- FDOM_Discharge_Rain %>%
+  mutate(intensity = runmax(Rain, 96)) %>%
+  mutate(month = month(by15))
+
+FDOM_Discharge_Rain
+```
+
+#visualize
+```{R}
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = by15, y = conc))+
+  geom_point()
+
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = by15, y = Rain))+
+  geom_point()
+
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = by15, y = Discharge))+
+  geom_point()
+
+#discharge vs rain
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = by15, y = Discharge, color = Rain))+
+  geom_point()
+
+#discgarge vs rain
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = Rain, y= Discharge, color = by15))+
+  geom_point()
+
+#rain vs CDOM
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = Rain, y = conc, color = by15))+
+  geom_point()
+
+#discharge vs CDOM
+ggplot(data = FDOM_Discharge_Rain,
+       mapping = aes(x = conc, y= Discharge, color = by15))+
+  geom_point()
+
+```
+
+Linear model
+```{R}
+qplot(Rain, Discharge, color = conc, data = FDOM_Discharge_Rain)+
+  scale_color_gradient(low = "orange", high = "blue")+
+  theme_classic()+
+  facet_wrap(~cut_number(conc,4))
+
+pairs(FDOM_Discharge_Rain)
+
+```
+
+Fit and evaluate assumptions
+```{R}
+FDOM_mlr <- lm(conc ~ Rain + Discharge + month + intensity, data = FDOM_Discharge_Rain)
+
+#assumptions
+par(mfrow = c(2,2))
+plot(FDOM_mlr, which = c(1,2,5))
+par(mfrow = c(1,1))
+
+residualPlots(FDOM_mlr, test = FALSE)
+
+vif(FDOM_mlr) 
+
+FDOM_Discharge_Rain%>%
+  select(Rain, Discharge)%>%
+  cor()
+
+```
+
+#Evaluation
+
+```{R}
+Anova(FDOM_mlr)
+summary(FDOM_mlr)
+
+```
+
+
+
+Visualization
+
+```{R}
+crPlots(model = FDOM_mlr, smooth = FALSE)
+
+library(visreg)
+visreg(FDOM_mlr)
+
+
+```

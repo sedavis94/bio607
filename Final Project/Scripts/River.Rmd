@@ -1,0 +1,232 @@
+---
+title: "Flashiness"
+author: "Shannon Davis"
+date: "December 13, 2018"
+output: html_document
+---
+
+Shannon Davis
+Fall 2018
+BIOL 607
+
+###Characterizing Massachusetts Rivers & How Rain Affects Carbon Concentrations
+
+#Introduction:
+Episodic rain events significantly affect the flux of dissolved organic carbon (DOC) from land to ocean. Moderate to large rain events (> 1.38 cm/day or 0.54 inch/day) have been found to be responsible for 57% of the DOC flux in rivers. In the Boston, MA, area there is an average of 28 days a year that exceed 1.38 cm of rain. Between July 1 and the October 17 of 2018 precipitation on 13 of 44 rainy days exceeded 1.38 cm. During these rain events, chromophoric dissolved organic matter (CDOM) was measured by an insitu fluorometer, continuously, in Town Brook, a small urban stream in Quincy, MA. Our CDOM sensor was deployed adjacent to a USGS gauging station site above the estuary. Discrete samples measured for dissolved organic carbon (DOC) allow the use of in situ CDOM fluorescence as a proxy for DOC. Town Brook has a drainage are of 4.11 square miles (10.66 km2), and impermeable surfaces make up 51.9 % of the land area. This river drains directly into Quincy Harbor (southern part of Boston Harbor). This site was chosen to represent small urban streams with highly impermeable land cover (R-B flashiness index 0.42). The average discharge in Town Brook is 0.11 m^3/s, but during an extreme rainstorm, discharge exceeds 14 m^3/s when the stream overflows its banks. Results suggest a complex correlation between the concentration of DOM and rainfall that is dependent on length of the rain event, intensity of the rain, season, time between rainstorms. Measurements in Town Brook provides insight into how storm parameters affect episodic carbon fluxes from land to ocean.
+
+My overall research goal is to look at how flashiness (R-B flashiness index) affects the amount of carbon that moves from land to ocean during rain events. For this project I only have data from one river, Town Brook. This river is the flashiest gaged river, that flows directly into the ocean in Massachusetts. 
+
+Having a river gaged is a limiting factor to my research. I need high resolution discharge data adjacent to a fluorometer. I need to determine if there is a more flashy river than Town Brook. To do this I first need to know if there are any features that make a river flashy. A model that includes percent permeability and discharge that predicts flashiness could help me in the future to find better or more sampling sites.
+From the insitu fluorometer I have [CDOM]. I also have discharge from the adjacent USGS gage. I can use the discharge and [CDOM] to get amount of carbon, which is a much more useful measurement than concentration for comparing different events. I am also using the Boston water and sewer rainfall records from Hyde park as my precipitation data. This is the closest high-resolution rainfall data to Quincy. From this data a model can be made determining if rainfall parameters like, intensity and rain amount affect the amount of CDOM.  
+
+#Question: 
+(1)How do flow rates and percent permeability affect the flashiness of rivers? 
+My hypothesis is that permeability and average discharge are the main predictors of flashiness 
+Ho = permeability has no effect on flashiness of rivers
+Ha = permeability has a statistically significant effect on the flashiness of rivers 
+
+When looking at a small flashy river how does rain affect chromophoric dissolved oxygen concentrations?
+My hypothesis is that rainfall is the main predictor of CDOM amount.
+Ho = rainfall has no effect on CDOM amount
+Ha = rainfall has a statistically significant effect on CDOM amount
+
+#Methods(1):
+
+#####Load in packages and data
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(tibbletime)
+library(data.table)
+library(ggplot2)
+library(emmeans)
+library(car)
+library(broom)
+library(modelr)
+library(visreg)
+```
+
+The next step is to read in the data we will be using. This data came from USGS gages in Massachusetts over 25 years and permiabilty measurments from stream stats (a USGS application). 
+
+```{R}
+river <- read_csv("../Data/Massriver.csv") %>%
+  select(flow, flashiness, perm)
+
+head(river)
+```
+#####Visualize
+Next we are going to visualize what this data looks like and see if the data looks linear. 
+
+```{R}
+qplot(flow, flashiness, color = perm, data = river )+
+  scale_color_gradient(low = "blue", high = "red")+
+  theme_grey()
+
+pairs(river)
+
+```
+
+From the above graph we can see that the data aperas to have a logarithmic relationship. I am going to log transform flow. 
+```{R}
+river_ln <- river%>%
+  mutate(ln_flow = log(flow)) #log tansforming flow 
+
+head(river_ln)
+
+qplot(ln_flow, flashiness, color = perm, data = river_ln )+
+  scale_color_gradient(low = "blue", high = "red")+
+  theme_grey()
+
+pairs(river_ln)
+
+```
+This looks a lot better. There is a clearer relastionship between ln_flow and flashiness. 
+
+Next we are going to look at a faceted version of the data to see if the parameters act differenty at different ranges. 
+```{R}
+ggplot(river_ln,
+       aes(x = ln_flow, y = flashiness, color = perm)) +
+  geom_point(size = 2) +
+  scale_color_viridis_c(option = "B") +
+  facet_wrap(~cut_number(perm, 2))
+```
+
+From the above graph it looks like flow has an affect on flashiness in high permability areas, but not really in low permiability areas. 
+
+From this I made the desion to use a linear model with interaction affects.
+
+```{R}
+river_mlr_int <- lm(flashiness ~ ln_flow * perm, data = river_ln)
+```
+
+
+#Results(1)
+The first thing we have to do is evaluate our assumptions. The first assumption is that there are noraml residuals and homoscedasticity. 
+```{R}
+
+plot(river_mlr_int, which = c(1,2,5))
+#mosly good. cooks distance is off a bit
+
+residualPlots(river_mlr_int, test= FALSE)
+#good
+
+```
+These checks look mostly good, the cooks distance is a bit off, but this could be due to a small sample size and only haveing one large river (The Connecticut). This point is defintly an outlier, but I am choosing to leave it in because it is a true data point.  
+
+Next we are going to look at coliniarity
+```{R}
+
+#variance inflation factor 
+vif(river_mlr_int)
+#really good!
+
+river_ln %>%
+  select(perm, ln_flow)%>%
+  mutate(int = perm* ln_flow) %>%
+  cor()
+
+
+
+#0.68 is pretty high
+```
+The variance infaltion factor is really good, but the correlation between predictors is pretty high(0.68). 
+
+To combat this centering can be done. 
+
+
+```{R}
+#really high so center
+
+river_ln <- river_ln %>%
+  mutate(perm_c = (perm - mean(perm)),
+         flow_ln_c = (ln_flow - mean(ln_flow)))
+
+head(river_ln)
+
+river_mlr_int_c <- lm(flashiness ~ flow_ln_c * perm_c, data = river_ln)
+
+vif(river_mlr_int_c)
+#even better <3
+river_ln
+
+river_ln %>%
+  select(perm_c, flow_ln_c)%>%
+  mutate(int = perm_c*flow_ln_c) %>%
+  cor()
+
+#actually worse! 
+
+tidy(river_mlr_int_c)
+tidy(river_mlr_int)
+
+Anova(river_mlr_int)
+Anova(river_mlr_int_c)
+
+
+summary(river_mlr_int)
+
+coef(river_mlr_int_c)
+coef(river_mlr_int)
+
+#
+```
+The VIF got even better with centering, but the correlation didn't improve. Since there is very litte difference between the two models I am going to continue on with the uncentered model. 
+
+#Discussion:
+The first thing we have to do is look at the summary output. the summary shows the effect each variable has and also the fit of the model.
+```{R}
+summary(river_mlr_int)
+```
+We can see that the R squared is 0.7. 
+
+#####Visualize
+The best way to get an overveiw of what a model is doing is by visulaizing it. 
+```{R}
+visreg(river_mlr_int, "perm", "ln_flow", gg= TRUE)
+visreg(river_mlr_int, "ln_flow", "perm", gg= TRUE)
+```
+The top graph shows what happens to flashiness as flow increses. As we can see in the third pane there is so much uncertanty that flashiness crosses zero (negative flashiness has no real world meaning). For the other 2 panes we can see that as permability goes up so does flashiness. The rate at which flashiness increases is similar at all three flow groups. 
+
+The bottom graph shows what happens to flahsiness when permiabilty is increasing. Just like the above graph the third pane crosses over zero flashiness. The interesting thing with this graph is that we can start to see differnt slopes for different permiabilites. This shows the interaction affect of permiability and flow. 
+
+```{R}
+river_int_explore <- data_grid(river_ln,
+                               perm = seq_range(perm, 100),
+                               ln_flow = seq_range(ln_flow, 4))%>%
+  cbind(predict(river_mlr_int, newdata = ., interval = "confidence"))%>%
+  rename(flashiness = fit)
+
+ggplot(river_ln,
+       aes(x = perm, y = flashiness, color = ln_flow)) + 
+  geom_point() +
+  geom_line(data = river_int_explore, aes(group = ln_flow)) +
+  geom_ribbon(data = river_int_explore, aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+  facet_wrap(~cut_interval(ln_flow,4)) +
+  scale_color_viridis_c(option = "A")
+
+```
+This graph shows how the model behaves under different conditions. This graph shows something very similar to the previous, with more bins. We can see from this that the varibility increases drastically with higher flow. 
+
+```{R}
+river_surface <- data_grid(river_ln,
+                            ln_flow = seq_range(ln_flow, 100),
+                            perm = seq_range(perm, 100)) %>%
+  add_predictions(river_mlr_int, var = "flashiness")
+
+ggplot(river_surface,
+       aes(x = ln_flow, y = perm, fill = flashiness)) +
+  geom_raster() +
+  scale_fill_viridis_c(option = "D")
+
+
+```
+This graph is a 2D representation of how the varibales are interacting. We can see that as flow decreases and permability incerases flashiness reaches a maximum. 
+
+#Conclusion(1)
+From the above model we can say that permiabilty is highly corrilated to flashiness. In the future I can use this model to predicit which ungaged rivers will be flashy and be able to better pick study sites.
+
+
+
